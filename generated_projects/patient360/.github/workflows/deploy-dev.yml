@@ -1,0 +1,58 @@
+name: Deploy to DEV
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    name: Bundle Deploy - DEV
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: pip install databricks-cli databricks-sdk
+
+      - name: Deploy Bundle to DEV
+        run: databricks bundle deploy --target dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Upload SQL Views
+        run: |
+          databricks workspace import workspace/sql/gold_views.sql \
+            /Workspace/patient360/sql/gold_views.sql --overwrite
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Trigger Pipeline Run (Smoke Test)
+        run: |
+          RUN_ID=$(databricks runs submit --json '{
+            "run_name": "smoke_test_dev",
+            "existing_cluster_id": "${{ secrets.CLUSTER_ID_DEV }}",
+            "notebook_task": {
+              "notebook_path": "/Workspace/patient360/workspace/notebooks/validation/validate_pipeline",
+              "base_parameters": {"catalog": "sdlc_catalog"}
+            }
+          }' | jq -r '.run_id')
+          echo "Smoke test run ID: $RUN_ID"
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Notify Success
+        if: success()
+        run: echo "DEV deployment successful"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "DEV deployment failed — check logs"

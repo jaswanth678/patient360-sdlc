@@ -1,0 +1,67 @@
+filters:
+  global:
+    - id: filter_state
+      name: State
+      type: multi_select
+      sql: SELECT DISTINCT state FROM sdlc_catalog.patient_360_gold.patient_360_master ORDER BY state
+      applies_to: [executive, clinical, financial]
+      default: ALL
+
+    - id: filter_date_range
+      name: Date Range
+      type: date_range
+      column: last_appointment_date
+      default: last_90_days
+      applies_to: [executive, operational, clinical, financial]
+
+    - id: filter_risk_category
+      name: Risk Category
+      type: multi_select
+      options: [HIGH_RISK, MEDIUM_RISK, LOW_RISK]
+      applies_to: [clinical]
+      default: ALL
+
+  clinical:
+    - id: filter_disease
+      name: Disease
+      type: multi_select
+      sql: SELECT DISTINCT primary_disease FROM sdlc_catalog.patient_360_gold.patient_360_master WHERE primary_disease IS NOT NULL ORDER BY primary_disease
+      applies_to: [clinical]
+      default: ALL
+
+    - id: filter_lab_status
+      name: Lab Status
+      type: single_select
+      options: [ALL, ABOVE_NORMAL, BELOW_NORMAL, NORMAL]
+      applies_to: [clinical]
+      default: ALL
+
+  operational:
+    - id: filter_department
+      name: Department
+      type: multi_select
+      sql: SELECT DISTINCT department FROM sdlc_catalog.patient_360_gold.doctor_performance_summary ORDER BY department
+      applies_to: [operational]
+      default: ALL
+
+    - id: filter_doctor
+      name: Doctor
+      type: multi_select
+      sql: SELECT DISTINCT doctor_name FROM sdlc_catalog.patient_360_gold.doctor_performance_summary ORDER BY doctor_name
+      applies_to: [operational]
+      default: ALL
+
+  financial:
+    - id: filter_payment_mode
+      name: Payment Mode
+      type: single_select
+      options: [ALL, UPI, CASH]
+      applies_to: [financial]
+      default: ALL
+
+    - id: filter_insurance_provider
+      name: Insurance Provider
+      type: multi_select
+      sql: SELECT DISTINCT insurance_provider FROM sdlc_catalog.patient_360_gold.patient_financial_summary ORDER BY insurance_provider
+      applies_to: [financial]
+      default: ALL

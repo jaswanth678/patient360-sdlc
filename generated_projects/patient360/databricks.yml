@@ -1,0 +1,46 @@
+bundle:
+  name: patient360
+
+variables:
+  catalog_name:
+    default: sdlc_catalog
+  source_schema:
+    default: patient_360
+  raw_schema:
+    default: patient_360_raw
+  silver_schema:
+    default: patient_360_silver
+  gold_schema:
+    default: patient_360_gold
+  cluster_id:
+    default: ""
+  notification_email:
+    default: ""
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      catalog_name: sdlc_catalog
+    workspace:
+      host: ${var.databricks_host}
+
+  qa:
+    mode: staging
+    variables:
+      catalog_name: sdlc_catalog
+    workspace:
+      host: ${var.databricks_host}
+
+  prod:
+    mode: production
+    variables:
+      catalog_name: sdlc_catalog
+    workspace:
+      host: ${var.databricks_host}
+
+resources:
+  jobs:
+    patient360_pipeline:
+      $ref: resources/jobs.yml

@@ -1,0 +1,109 @@
+kpis:
+  executive:
+    - id: kpi_total_patients
+      name: Total Patients
+      description: Distinct count of all patients in the system
+      sql: |
+        SELECT COUNT(DISTINCT patient_id) AS total_patients
+        FROM sdlc_catalog.patient_360_gold.patient_360_master
+      format: number
+      threshold_warning: null
+      threshold_critical: null
+
+    - id: kpi_active_patients
+      name: Active Patients
+      description: Patients with at least one appointment in the last 90 days
+      sql: |
+        SELECT COUNT(DISTINCT patient_id) AS active_patients
+        FROM sdlc_catalog.patient_360_gold.patient_360_master
+        WHERE last_appointment_date >= current_date() - INTERVAL 90 DAYS
+      format: number
+
+    - id: kpi_total_revenue
+      name: Total Revenue (INR)
+      description: Sum of all treatment costs
+      sql: |
+        SELECT ROUND(SUM(total_treatment_cost), 2) AS total_revenue
+        FROM sdlc_catalog.patient_360_gold.patient_financial_summary
+      format: currency
+      currency: INR
+
+    - id: kpi_total_appointments
+      name: Total Appointments
+      description: Total appointment count across all patients
+      sql: |
+        SELECT SUM(total_appointments) AS total_appointments
+        FROM sdlc_catalog.patient_360_gold.patient_360_master
+      format: number
+
+    - id: kpi_avg_treatment_cost
+      name: Avg Treatment Cost (INR)
+      description: Average per-patient treatment cost
+      sql: |
+        SELECT ROUND(AVG(total_treatment_cost), 2) AS avg_treatment_cost
+        FROM sdlc_catalog.patient_360_gold.patient_financial_summary
+      format: currency
+      currency: INR
+
+  clinical:
+    - id: kpi_high_risk_patients
+      name: High Risk Patients
+      description: Count of patients classified as HIGH_RISK
+      sql: |
+        SELECT COUNT(patient_id) AS high_risk_count
+        FROM sdlc_catalog.patient_360_gold.patient_risk_summary
+        WHERE risk_category = 'HIGH_RISK'
+      format: number
+      threshold_critical: 100
+
+    - id: kpi_lab_abnormality_rate
+      name: Lab Abnormality Rate (%)
+      description: Percentage of lab tests with abnormal results
+      sql: |
+        SELECT ROUND(
+          SUM(above_normal_count + below_normal_count) * 100.0 / NULLIF(SUM(total_lab_tests), 0), 2
+        ) AS lab_abnormality_rate
+        FROM sdlc_catalog.patient_360_gold.patient_clinical_summary
+      format: percentage
+      threshold_warning: 20
+      threshold_critical: 40
+
+    - id: kpi_medication_adherence
+      name: Medication Adherence Rate (%)
+      description: Average medication adherence across all patients
+      sql: |
+        SELECT ROUND(AVG(adherence_rate), 2) AS avg_adherence_rate
+        FROM sdlc_catalog.patient_360_gold.medication_adherence_summary
+      format: percentage
+      threshold_warning: 70
+      threshold_critical: 50
+
+  operational:
+    - id: kpi_total_doctors
+      name: Total Active Doctors
+      sql: |
+        SELECT COUNT(DISTINCT doctore_id) AS total_doctors
+        FROM sdlc_catalog.patient_360_gold.doctor_performance_summary
+      format: number
+
+    - id: kpi_avg_patients_per_doctor
+      name: Avg Patients per Doctor
+      sql: |
+        SELECT ROUND(AVG(unique_patients), 1) AS avg_patients_per_doctor
+        FROM sdlc_catalog.patient_360_gold.doctor_performance_summary
+      format: number
+
+  financial:
+    - id: kpi_insurance_coverage_pct
+      name: Insurance Coverage Rate (%)
+      sql: |
+        SELECT ROUND(AVG(insurance_coverage_pct), 2) AS avg_insurance_coverage_pct
+        FROM sdlc_catalog.patient_360_gold.patient_financial_summary
+      format: percentage
+
+    - id: kpi_upi_payment_share
+      name: UPI Payment Share (%)
+      sql: |
+        SELECT ROUND(SUM(upi_payments) * 100.0 / NULLIF(SUM(total_bills), 0), 2) AS upi_share
+        FROM sdlc_catalog.patient_360_gold.patient_financial_summary
+      format: percentage

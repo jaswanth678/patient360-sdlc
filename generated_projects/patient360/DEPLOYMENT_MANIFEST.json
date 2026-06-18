@@ -1,0 +1,151 @@
+{
+  "deployment_date": "2026-06-18",
+  "deployed_by": "jaswanthkadali@gmail.com",
+  "workspace_url": "https://dbc-b779df5b-df6a.cloud.databricks.com",
+  "project": "Patient360 Analytics Platform",
+  "version": "1.0",
+
+  "unity_catalog": {
+    "catalog": "sdlc_catalog",
+    "schemas": {
+      "raw":    "sdlc_catalog.patient_360_raw",
+      "bronze": "sdlc_catalog.patient_360_bronze",
+      "silver": "sdlc_catalog.patient_360_silver",
+      "gold":   "sdlc_catalog.patient_360_gold"
+    },
+    "gold_tables": [
+      "sdlc_catalog.patient_360_gold.patient_360_master",
+      "sdlc_catalog.patient_360_gold.patient_financial_summary",
+      "sdlc_catalog.patient_360_gold.patient_risk_summary",
+      "sdlc_catalog.patient_360_gold.patient_clinical_summary",
+      "sdlc_catalog.patient_360_gold.doctor_performance_summary",
+      "sdlc_catalog.patient_360_gold.medication_adherence_summary"
+    ],
+    "gold_views": [
+      "sdlc_catalog.patient_360_gold.vw_patient_overview",
+      "sdlc_catalog.patient_360_gold.vw_executive_kpis",
+      "sdlc_catalog.patient_360_gold.vw_disease_prevalence",
+      "sdlc_catalog.patient_360_gold.vw_high_risk_patients",
+      "sdlc_catalog.patient_360_gold.vw_doctor_revenue",
+      "sdlc_catalog.patient_360_gold.vw_medication_adherence"
+    ],
+    "silver_tables": [
+      "sdlc_catalog.patient_360_silver.silver_patient",
+      "sdlc_catalog.patient_360_silver.silver_appointment",
+      "sdlc_catalog.patient_360_silver.silver_diagnosis",
+      "sdlc_catalog.patient_360_silver.silver_medication",
+      "sdlc_catalog.patient_360_silver.silver_lab",
+      "sdlc_catalog.patient_360_silver.silver_billing",
+      "sdlc_catalog.patient_360_silver.silver_patient_history",
+      "sdlc_catalog.patient_360_silver.dq_rejection_log"
+    ]
+  },
+
+  "jobs": {
+    "patient360_pipeline": {
+      "job_id": 444472832861238,
+      "name": "Patient360 Analytics Pipeline",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/jobs/444472832861238",
+      "schedule": "0 0 2 * * ? (Asia/Kolkata — 02:00 IST daily)",
+      "status": "PAUSED",
+      "tasks": [
+        "ingest_source → bronze_load → silver_transform → gold_build → validate_pipeline"
+      ]
+    }
+  },
+
+  "pipelines": {
+    "patient360_dlt": {
+      "pipeline_id": "ecb7bda2-b245-4292-9c8f-551b98907a43",
+      "name": "Patient360 DLT Pipeline",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/pipelines/ecb7bda2-b245-4292-9c8f-551b98907a43",
+      "catalog": "sdlc_catalog",
+      "target_schema": "patient_360_dlt",
+      "status": "COMPLETED",
+      "last_run_tables": 7
+    }
+  },
+
+  "dashboards": {
+    "executive": {
+      "dashboard_id": "01f16b2c29761be1b683af2fdfc75987",
+      "name": "Patient360 — Executive Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c29761be1b683af2fdfc75987",
+      "status": "PUBLISHED"
+    },
+    "clinical": {
+      "dashboard_id": "01f16b2c2bed127bbb817d31ee3bf197",
+      "name": "Patient360 — Clinical Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c2bed127bbb817d31ee3bf197",
+      "status": "PUBLISHED"
+    },
+    "operational": {
+      "dashboard_id": "01f16b2c2e7d1ae8bcb3770c361f3657",
+      "name": "Patient360 — Operational Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c2e7d1ae8bcb3770c361f3657",
+      "status": "PUBLISHED"
+    },
+    "financial": {
+      "dashboard_id": "01f16b2c317614d7832a31cf12c9c7e4",
+      "name": "Patient360 — Financial Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c317614d7832a31cf12c9c7e4",
+      "status": "PUBLISHED"
+    },
+    "data_quality": {
+      "dashboard_id": "01f16b2c4fca1310b569134fde287768",
+      "name": "Patient360 — Data Quality Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c4fca1310b569134fde287768",
+      "status": "PUBLISHED"
+    },
+    "kpi": {
+      "dashboard_id": "01f16b2c56fa14e4bdb74b2d944a9fa2",
+      "name": "Patient360 — KPI Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c56fa14e4bdb74b2d944a9fa2",
+      "status": "PUBLISHED"
+    },
+    "monitoring": {
+      "dashboard_id": "01f16b2c688f190eb93ee399ce4ae570",
+      "name": "Patient360 — Monitoring Dashboard",
+      "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c688f190eb93ee399ce4ae570",
+      "status": "PUBLISHED"
+    }
+  },
+
+  "workspace_notebooks": {
+    "base_path": "/Workspace/Users/jaswanthkadali@gmail.com/patient360/notebooks/notebooks",
+    "bronze": [
+      "bronze/01_bronze_patient",
+      "bronze/02_bronze_appointment",
+      "bronze/03_bronze_diagnosis",
+      "bronze/04_bronze_medication",
+      "bronze/05_bronze_lab",
+      "bronze/06_bronze_billing",
+      "bronze/07_bronze_patient_history"
+    ],
+    "silver": [
+      "silver/01_silver_patient",
+      "silver/02_silver_clinical",
+      "silver/03_silver_financial"
+    ],
+    "gold": [
+      "gold/01_gold_patient_master",
+      "gold/02_gold_clinical_and_risk",
+      "gold/03_gold_financial_and_performance"
+    ],
+    "utils": ["utils/logging_utils"],
+    "validation": ["validation/validate_pipeline"]
+  },
+
+  "sql_warehouse": {
+    "warehouse_id": "5e872471aabd37ad",
+    "url": "https://dbc-b779df5b-df6a.cloud.databricks.com/sql/warehouses/5e872471aabd37ad"
+  },
+
+  "total_files_uploaded": 58,
+  "notebooks_uploaded": 15,
+  "src_files_uploaded": 6,
+  "sql_files_uploaded": 3,
+  "doc_files_uploaded": 7,
+  "dashboard_files_uploaded": 6,
+  "test_files_uploaded": 5
+}

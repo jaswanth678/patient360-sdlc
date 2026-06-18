@@ -1,0 +1,265 @@
+{
+  "dashboards": [
+    {
+      "id": "executive_dashboard",
+      "displayName": "Patient360 - Executive Dashboard",
+      "description": "C-level overview of patient counts, revenue, and appointment trends",
+      "tags": ["patient360", "executive", "healthcare"],
+      "pages": [
+        {
+          "id": "page_executive",
+          "displayName": "Executive Overview",
+          "layout": {
+            "rows": [
+              {
+                "id": "row_kpis",
+                "height": 2,
+                "widgets": [
+                  {"id": "kpi_total_patients",    "type": "counter", "width": 2, "query_id": "EX-01", "field": "total_patients",    "label": "Total Patients"},
+                  {"id": "kpi_active_patients",   "type": "counter", "width": 2, "query_id": "EX-01", "field": "active_patients",   "label": "Active Patients"},
+                  {"id": "kpi_total_revenue",     "type": "counter", "width": 2, "query_id": "EX-01", "field": "total_revenue_inr", "label": "Total Revenue (INR)", "format": "currency"},
+                  {"id": "kpi_total_appts",       "type": "counter", "width": 2, "query_id": "EX-01", "field": "total_appointments","label": "Total Appointments"},
+                  {"id": "kpi_avg_cost",          "type": "counter", "width": 2, "query_id": "EX-01", "field": "avg_treatment_cost_inr", "label": "Avg Treatment Cost"}
+                ]
+              },
+              {
+                "id": "row_charts_1",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_revenue_state",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "EX-02",
+                    "title": "Revenue by State",
+                    "x_column": "state",
+                    "y_column": "total_revenue_inr",
+                    "orientation": "horizontal"
+                  },
+                  {
+                    "id": "chart_appt_trend",
+                    "type": "line",
+                    "width": 6,
+                    "query_id": "EX-03",
+                    "title": "Monthly Appointment Trend",
+                    "x_column": "month",
+                    "y_column": "total_appointments",
+                    "series": ["active_patients"]
+                  }
+                ]
+              },
+              {
+                "id": "row_charts_2",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_age_dist",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "EX-04",
+                    "title": "Patient Age Distribution",
+                    "x_column": "age_group",
+                    "y_column": "patient_count"
+                  },
+                  {
+                    "id": "chart_active_donut",
+                    "type": "pie",
+                    "width": 6,
+                    "query_id": "EX-01",
+                    "title": "Active vs Total Patients",
+                    "dimension": "status",
+                    "measure": "count"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "clinical_dashboard",
+      "displayName": "Patient360 - Clinical Dashboard",
+      "description": "Clinical analysis: disease distribution, lab trends, risk stratification",
+      "tags": ["patient360", "clinical", "healthcare"],
+      "pages": [
+        {
+          "id": "page_clinical",
+          "displayName": "Clinical Overview",
+          "layout": {
+            "rows": [
+              {
+                "id": "row_clinical_kpis",
+                "height": 2,
+                "widgets": [
+                  {"id": "kpi_high_risk",       "type": "counter", "width": 3, "query_id": "CL-02", "field": "patient_count", "filter": "risk_category='HIGH_RISK'", "label": "High Risk Patients"},
+                  {"id": "kpi_lab_abnormality", "type": "counter", "width": 3, "query_id": "CL-03", "field": "abnormality_rate_pct", "label": "Lab Abnormality Rate %"},
+                  {"id": "kpi_adherence",       "type": "counter", "width": 3, "query_id": "CL-04", "field": "avg_adherence_rate", "label": "Medication Adherence %"},
+                  {"id": "kpi_diseases",        "type": "counter", "width": 3, "query_id": "CL-01", "field": "disease_count", "label": "Unique Diseases"}
+                ]
+              },
+              {
+                "id": "row_clinical_charts_1",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_disease_dist",
+                    "type": "pie",
+                    "width": 6,
+                    "query_id": "CL-01",
+                    "title": "Disease Distribution (Top 15)",
+                    "dimension": "primary_disease",
+                    "measure": "patient_count"
+                  },
+                  {
+                    "id": "chart_risk_cat",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "CL-02",
+                    "title": "Patient Risk Categories",
+                    "x_column": "risk_category",
+                    "y_column": "patient_count",
+                    "color_by": "risk_category"
+                  }
+                ]
+              },
+              {
+                "id": "row_clinical_charts_2",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_adherence_disease",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "CL-04",
+                    "title": "Medication Adherence by Disease",
+                    "x_column": "disease",
+                    "y_column": "avg_adherence_rate"
+                  },
+                  {
+                    "id": "table_high_risk",
+                    "type": "table",
+                    "width": 6,
+                    "query_id": "CL-05",
+                    "title": "High Risk Patient Detail",
+                    "columns": ["patient_id", "risk_category", "overall_risk_score", "total_treatment_cost"]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "operational_dashboard",
+      "displayName": "Patient360 - Operational Dashboard",
+      "description": "Doctor performance, department workload, visit frequency",
+      "tags": ["patient360", "operational", "healthcare"],
+      "pages": [
+        {
+          "id": "page_operational",
+          "displayName": "Operational Overview",
+          "layout": {
+            "rows": [
+              {
+                "id": "row_op_kpis",
+                "height": 2,
+                "widgets": [
+                  {"id": "kpi_total_doctors", "type": "counter", "width": 3, "query_id": "OP-01", "field": "total_doctors", "label": "Total Doctors"},
+                  {"id": "kpi_avg_patients",  "type": "counter", "width": 3, "query_id": "OP-01", "field": "avg_patients", "label": "Avg Patients/Doctor"},
+                  {"id": "kpi_total_appts_op","type": "counter", "width": 3, "query_id": "OP-02", "field": "total_appointments", "label": "Total Appointments"},
+                  {"id": "kpi_departments",   "type": "counter", "width": 3, "query_id": "OP-02", "field": "department_count", "label": "Active Departments"}
+                ]
+              },
+              {
+                "id": "row_op_charts",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_doctor_workload",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "OP-01",
+                    "title": "Doctor Workload (Appointments)",
+                    "x_column": "doctor_name",
+                    "y_column": "total_appointments"
+                  },
+                  {
+                    "id": "chart_dept_workload",
+                    "type": "bar",
+                    "width": 6,
+                    "query_id": "OP-02",
+                    "title": "Department Workload",
+                    "x_column": "department",
+                    "y_column": "total_appointments",
+                    "orientation": "horizontal"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "financial_dashboard",
+      "displayName": "Patient360 - Financial Dashboard",
+      "description": "Revenue trends, insurance coverage, billing analysis",
+      "tags": ["patient360", "financial", "healthcare"],
+      "pages": [
+        {
+          "id": "page_financial",
+          "displayName": "Financial Overview",
+          "layout": {
+            "rows": [
+              {
+                "id": "row_fin_kpis",
+                "height": 2,
+                "widgets": [
+                  {"id": "kpi_total_rev_fin",     "type": "counter", "width": 3, "query_id": "EX-01", "field": "total_revenue_inr",    "label": "Total Revenue (INR)"},
+                  {"id": "kpi_insurance_cov",     "type": "counter", "width": 3, "query_id": "FI-01", "field": "coverage_pct",         "label": "Avg Insurance Coverage %"},
+                  {"id": "kpi_out_of_pocket",     "type": "counter", "width": 3, "query_id": "FI-01", "field": "out_of_pocket",        "label": "Avg Out-of-Pocket"},
+                  {"id": "kpi_upi_share",         "type": "counter", "width": 3, "query_id": "FI-02", "field": "upi_pct",              "label": "UPI Payment Share %"}
+                ]
+              },
+              {
+                "id": "row_fin_charts",
+                "height": 4,
+                "widgets": [
+                  {
+                    "id": "chart_rev_trend",
+                    "type": "line",
+                    "width": 6,
+                    "query_id": "FI-03",
+                    "title": "Monthly Revenue Trend",
+                    "x_column": "month",
+                    "y_column": "monthly_revenue"
+                  },
+                  {
+                    "id": "chart_payment_mode",
+                    "type": "pie",
+                    "width": 3,
+                    "query_id": "FI-02",
+                    "title": "Payment Mode Distribution",
+                    "dimension": "payment_mode",
+                    "measure": "transaction_count"
+                  },
+                  {
+                    "id": "chart_billing_status",
+                    "type": "bar",
+                    "width": 3,
+                    "query_id": "FI-04",
+                    "title": "Billing Status",
+                    "x_column": "payment_status",
+                    "y_column": "total_amount"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

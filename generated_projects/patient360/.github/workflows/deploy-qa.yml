@@ -1,0 +1,41 @@
+name: Deploy to QA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy-qa:
+    name: Bundle Deploy - QA
+    runs-on: ubuntu-latest
+    environment: qa
+    concurrency:
+      group: deploy-qa
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: pip install databricks-cli databricks-sdk
+
+      - name: Deploy Bundle to QA
+        run: databricks bundle deploy --target qa
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
+      - name: Run Integration Validation
+        run: |
+          databricks runs submit --json '{
+            "run_name": "qa_validation",
+            "existing_cluster_id": "${{ secrets.CLUSTER_ID_QA }}",
+            "notebook_task": {
+              "notebook_path": "/Workspace/patient360/workspace/notebooks/validation/validate_pipeline",
+              "base_parameters": {"catalog": "sdlc_catalog"}
+            }
+          }'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
