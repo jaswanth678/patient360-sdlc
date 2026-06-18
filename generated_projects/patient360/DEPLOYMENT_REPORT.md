@@ -1,229 +1,120 @@
-# Patient360 Analytics Platform — Deployment Report
+# Patient360 Analytics Platform — Final Deployment Report
 
-**Generated:** 2026-06-18  
-**Jira Project:** DV (Databricks Vibecoding)  
-**Master Epic:** DV-1  
-**Status:** ALL ASSETS GENERATED
-
----
-
-## Executive Summary
-
-The Patient360 Analytics Platform has been fully generated across all SDLC phases. All notebooks, SQL assets, CI/CD pipelines, dashboards, documentation, and infrastructure-as-code are complete and ready for deployment.
+**Date:** 2026-06-18  
+**Deployed by:** jaswanthkadali@gmail.com  
+**Workspace:** https://dbc-b779df5b-df6a.cloud.databricks.com  
+**GitHub:** https://github.com/jaswanth678/patient360-sdlc  
+**Release:** https://github.com/jaswanth678/patient360-sdlc/releases/tag/v1.0.0  
+**Status:** DEPLOYMENT COMPLETE
 
 ---
 
-## Asset Inventory
+## Databricks Assets
 
-### 1. Jira Backlog (Project: DV)
+### Job Pipeline (Primary)
+| Field | Value |
+|-------|-------|
+| Job ID | 444472832861238 |
+| URL | https://dbc-b779df5b-df6a.cloud.databricks.com/jobs/444472832861238 |
+| Tasks | ingest_source → bronze_load → silver_transform → gold_build → validate_pipeline |
+| Schedule | 02:00 IST daily (paused) |
+| Status | SUCCESS (all tasks completed end-to-end) |
 
-| Issue | Type | Title |
-|-------|------|-------|
-| DV-1 | Epic | Patient360 Analytics Platform |
-| DV-2 | Feature | Patient Ingestion Framework |
-| DV-3 | Feature | Bronze Layer Implementation |
-| DV-4 | Feature | Silver Layer & DQ Engine |
-| DV-5 | Feature | Gold Layer Analytics |
-| DV-6 | Feature | Dashboard & Reporting |
-| DV-7 | Feature | Testing & CI/CD |
-| DV-8..N | Stories/Tasks | 20+ individual backlog items |
+### DLT Pipeline
+| Field | Value |
+|-------|-------|
+| Pipeline ID | ecb7bda2-b245-4292-9c8f-551b98907a43 |
+| URL | https://dbc-b779df5b-df6a.cloud.databricks.com/pipelines/ecb7bda2-b245-4292-9c8f-551b98907a43 |
+| Target Schema | sdlc_catalog.patient_360_dlt |
+| Status | COMPLETED (53 seconds, 7 silver tables) |
+| Notebook | /Workspace/Users/jaswanthkadali@gmail.com/patient360/src/src/ingestion/patient360_dlt_pipeline.py |
 
----
-
-### 2. Source Code (`src/`)
-
-| File | Purpose |
-|------|---------|
-| `src/ingestion/ingest_patient_records.py` | Reads 7 CSV sources → Raw tables |
-| `src/bronze/bronze_load_all.py` | Config-driven MERGE into Bronze |
-| `src/silver/dq_rules_engine.py` | 8 DQ rules, quarantine to dq_rejection_log |
-| `src/silver/silver_transform_all.py` | 7 transforms, dedup, lab_status derivation |
-| `src/gold/gold_build_all.py` | 6 Gold builders + risk scoring |
-
----
-
-### 3. Workspace Notebooks (`workspace/notebooks/`)
-
-#### Bronze (7 notebooks)
-| Notebook | Source → Bronze Table |
-|----------|-----------------------|
-| `bronze/01_bronze_patient.py` | raw_patient_records → bronze_patient |
-| `bronze/02_bronze_appointment.py` | raw_appointment_records → bronze_appointment |
-| `bronze/03_bronze_diagnosis.py` | raw_diagnosis_records → bronze_diagnosis |
-| `bronze/04_bronze_medication.py` | raw_medication → bronze_medication |
-| `bronze/05_bronze_lab.py` | raw_lab_reports → bronze_lab |
-| `bronze/06_bronze_billing.py` | raw_billing_records → bronze_billing |
-| `bronze/07_bronze_patient_history.py` | raw_patient_history → bronze_patient_history |
-
-#### Silver (3 notebooks)
-| Notebook | Tables |
-|----------|--------|
-| `silver/01_silver_patient.py` | silver_patient (dedup, DQ001/006/008) |
-| `silver/02_silver_clinical.py` | silver_appointment, silver_diagnosis, silver_medication, silver_lab |
-| `silver/03_silver_financial.py` | silver_billing, silver_patient_history |
-
-#### Gold (3 notebooks)
-| Notebook | Tables |
-|----------|--------|
-| `gold/01_gold_patient_master.py` | patient_360_master |
-| `gold/02_gold_clinical_and_risk.py` | patient_clinical_summary, patient_risk_summary |
-| `gold/03_gold_financial_and_performance.py` | patient_financial_summary, doctor_performance_summary, medication_adherence_summary |
-
-#### Utilities (2 notebooks)
-| Notebook | Purpose |
-|----------|---------|
-| `utils/logging_utils.py` | Reusable logging helpers |
-| `validation/validate_pipeline.py` | Post-run validation across all layers |
+### SQL Warehouse
+| Field | Value |
+|-------|-------|
+| Warehouse ID | 5e872471aabd37ad |
+| URL | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/warehouses/5e872471aabd37ad |
 
 ---
 
-### 4. SQL Assets (`workspace/sql/`)
+## Unity Catalog — Table Inventory
 
-| File | Contents |
-|------|---------|
-| `gold_views.sql` | 6 Gold views (vw_patient_overview, vw_executive_kpis, etc.) |
-| `kpi_queries.sql` | 10 standalone KPI calculations |
-| `validation_queries.sql` | 7 integrity and freshness checks |
+### Raw Layer (`sdlc_catalog.patient_360_raw`)
+7 tables — Patient, Appointment, Diagnosis, Medication, Lab, Billing, PatientHistory
 
----
+### Bronze Layer (`sdlc_catalog.patient_360_bronze`)
+7 tables — deduplicated MERGE with schema sanitization
 
-### 5. Dashboard Assets (`dashboards/`)
-
-| File | Contents |
-|------|---------|
-| `dashboard_spec.md` | 4 dashboard specifications |
-| `dashboard_kpis.yml` | 12 KPIs with SQL, format, thresholds |
-| `dashboard_filters.yml` | Global + domain-specific filters |
-| `dashboard_queries.sql` | 16 queries (EX/CL/OP/FI prefixed) |
-| `dashboard_layout.json` | Full Databricks AI/BI layout JSON |
-| `dashboard_documentation.md` | Deployment + access control guide |
-
----
-
-### 6. Infrastructure as Code
-
-| File | Purpose |
-|------|---------|
-| `databricks.yml` | DAB bundle: dev/qa/prod targets |
-| `resources/jobs.yml` | 5-task pipeline job definition |
-| `workspace/jobs/pipeline_jobs.yml` | Individual layer job definitions |
-| `terraform/main.tf` | Catalog, schemas, job, grants |
-| `terraform/variables.tf` | Parameterized Terraform variables |
-| `terraform/outputs.tf` | Job ID and workspace URL outputs |
-
----
-
-### 7. CI/CD Pipelines (`.github/workflows/`)
-
-| File | Trigger |
-|------|---------|
-| `validate.yml` | All branches on push/PR |
-| `unit-test.yml` | main/develop branches |
-| `deploy-dev.yml` | develop branch push |
-| `deploy-qa.yml` | main branch push |
-| `deploy-prod.yml` | Manual with "DEPLOY" confirmation |
-
----
-
-### 8. Tests (`tests/`)
-
-| File | Tests |
-|------|-------|
-| `tests/test_silver.py` | 10 tests: 8 DQ rules + dedup + lab_status |
-
----
-
-### 9. Documentation (`docs/`)
-
-| File | Contents |
-|------|---------|
-| `docs/architecture.md` | Medallion architecture, Unity Catalog, design decisions |
-| `docs/source_to_target_mapping.md` | Column-level lineage for all 7 datasets |
-| `docs/PRD.md` | Product requirements document |
-| `docs/Deployment_Guide.md` | Step-by-step deployment instructions |
-| `docs/Dashboard_Specification.md` | Dashboard widget/query/filter specs |
-| `docs/Runbook.md` | Operational runbook (already in docs/) |
-
----
-
-### 10. Workspace Deployment
-
-| Asset | Path |
+### Silver Layer (`sdlc_catalog.patient_360_silver`)
+| Table | Rows |
 |-------|------|
-| Deployment script | `workspace/deploy_to_workspace.sh` |
-| Job definitions | `workspace/jobs/pipeline_jobs.yml` |
+| silver_patient | 100 |
+| silver_appointment | 100 |
+| silver_diagnosis | 100 |
+| silver_medication | 200 |
+| silver_lab | 251 |
+| silver_billing | 100 |
+| silver_patient_history | 100 |
 
-**Deploy all notebooks:**
-```bash
-bash workspace/deploy_to_workspace.sh dev
-```
+### Gold Layer (`sdlc_catalog.patient_360_gold`)
+| Table | Rows | Description |
+|-------|------|-------------|
+| patient_360_master | 100 | Unified patient view with all aggregates |
+| patient_financial_summary | 100 | Per-patient financial breakdown |
+| patient_risk_summary | 100 | Age/lab/financial risk scoring |
+| patient_clinical_summary | 100 | Clinical diagnoses and lab risk flags |
+| doctor_performance_summary | 44 | Doctor revenue and appointment counts |
+| medication_adherence_summary | 146 | Medication adherence rates by disease |
 
-**Deploy DAB bundle:**
-```bash
-databricks bundle deploy --target dev
-```
-
----
-
-## Data Architecture Summary
-
-```
-Source Volume (7 CSV files)
-      ↓ [ingest_patient_records.py]
-sdlc_catalog.patient_360_raw (7 tables)
-      ↓ [bronze_load_all.py / bronze notebooks]
-sdlc_catalog.patient_360_bronze (7 tables) — MERGE INTO on PK
-      ↓ [silver_transform_all.py + dq_rules_engine.py]
-sdlc_catalog.patient_360_silver (7 tables + dq_rejection_log) — Dedup, DQ, Standardize
-      ↓ [gold_build_all.py / gold notebooks]
-sdlc_catalog.patient_360_gold (6 tables + views)
-      ↓
-Databricks AI/BI Dashboards (4 dashboards, 10 KPIs)
-```
+### DLT Layer (`sdlc_catalog.patient_360_dlt`)
+| Table | Rows |
+|-------|------|
+| silver_patient | 100 |
+| silver_appointment | 100 |
+| silver_billing | 100 |
+| silver_diagnosis | 100 |
+| silver_lab | 251 |
+| silver_medication | 200 |
+| silver_patient_history | 100 |
 
 ---
 
-## KPI Coverage
+## AI/BI Dashboards (7 Published)
 
-| # | KPI | Gold Table |
-|---|-----|------------|
-| 1 | Total Patients | patient_360_master |
-| 2 | Active Patients (90 days) | patient_360_master |
-| 3 | Total Appointments | patient_360_master |
-| 4 | Disease Distribution | patient_360_master |
-| 5 | Avg Treatment Cost | patient_financial_summary |
-| 6 | Revenue by State | patient_financial_summary |
-| 7 | Doctor Workload | doctor_performance_summary |
-| 8 | High Risk Patients | patient_risk_summary |
-| 9 | Medication Adherence Rate | medication_adherence_summary |
-| 10 | Lab Abnormality Rate | patient_clinical_summary |
+| Dashboard | ID | URL |
+|-----------|----|-----|
+| Executive | 01f16b2c29761be1b683af2fdfc75987 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c29761be1b683af2fdfc75987 |
+| Clinical | 01f16b2c2bed127bbb817d31ee3bf197 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c2bed127bbb817d31ee3bf197 |
+| Operational | 01f16b2c2e7d1ae8bcb3770c361f3657 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c2e7d1ae8bcb3770c361f3657 |
+| Financial | 01f16b2c317614d7832a31cf12c9c7e4 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c317614d7832a31cf12c9c7e4 |
+| Data Quality | 01f16b2c4fca1310b569134fde287768 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c4fca1310b569134fde287768 |
+| KPI | 01f16b2c56fa14e4bdb74b2d944a9fa2 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c56fa14e4bdb74b2d944a9fa2 |
+| Monitoring | 01f16b2c688f190eb93ee399ce4ae570 | https://dbc-b779df5b-df6a.cloud.databricks.com/sql/dashboardsv3/01f16b2c688f190eb93ee399ce4ae570 |
 
 ---
 
-## Quality Gates
+## GitHub Repository
 
-| Gate | Target | Method |
-|------|--------|--------|
-| Unit test coverage | ≥ 80% | pytest-cov |
-| DQ rejection rate | < 5% | dq_rejection_log count |
-| Bronze→Silver record ratio | ≥ 95% | VAL-02 validation query |
-| Gold table freshness | < 24h | VAL-04 validation query |
-| Lab abnormality rate | Monitoring only | KPI-10 |
-
----
-
-## Next Steps for Operations Team
-
-1. Set GitHub Secrets: `DATABRICKS_HOST_*`, `DATABRICKS_TOKEN_*`, `CLUSTER_ID_*`
-2. Run `databricks bundle validate` — ensure bundle is valid
-3. Run `databricks bundle deploy --target dev` — deploy to DEV
-4. Run `bash workspace/deploy_to_workspace.sh dev` — upload notebooks
-5. Run `pytest tests/` — confirm all 10 tests pass
-6. Trigger pipeline run and validate output using `validation_queries.sql`
-7. Create dashboards using `dashboard_layout.json`
-8. Schedule QA deployment after DEV validation
-9. Gate PROD deployment via `deploy-prod.yml` with manual "DEPLOY" confirmation
+| Item | Value |
+|------|-------|
+| Repository | https://github.com/jaswanth678/patient360-sdlc |
+| Branch | master |
+| Commit | d42ac18 — 67 files |
+| Release | v1.0.0 |
+| Release URL | https://github.com/jaswanth678/patient360-sdlc/releases/tag/v1.0.0 |
 
 ---
 
-*Report generated by Enterprise AI SDLC Factory Agent | Patient360 v1.0 | 2026-06-18*
+## Issues Fixed During Deployment
+
+| # | Error | Root Cause | Fix |
+|---|-------|-----------|-----|
+| 1 | `DELTA_MULTIPLE_SOURCE_ROW_MATCHING_TARGET_ROW_IN_MERGE` | Repeated ingestion appended duplicates | Added `dedup_by_pk()` using `row_number().over(Window)` before MERGE |
+| 2 | `CANNOT_PARSE_TIMESTAMP '2/2/2026'` | `M/d/yyyy` vs `yyyy-MM-dd` date format mismatch | Created `flex_date()` helper using `try_to_date` in coalesce |
+| 3 | Slash/special chars in column names | Old regex didn't catch `/`, `'` | Broadened to `re.sub(r'[^a-zA-Z0-9_]+', '_', name)` |
+| 4 | `UNRESOLVED_COLUMN payment_mode_upi_cash_` | Trailing underscore after `.strip('_')` | Changed to `payment_mode_upi_cash` |
+| 5 | `UNRESOLVED_COLUMN disease_name` | CSV typo: `diease_name` | Used `col("diease_name").alias("disease_name")` |
+| 6 | `AMBIGUOUS_REFERENCE age` | Both master and pat DataFrames had `age` after join | Removed `age` from `pat` select |
+| 7 | DLT `root_path` not found | `dlt` directory never existed in workspace | Uploaded DLT file to existing path |
+| 8 | DLT `UNSUPPORTED_SPARK_SQL_COMMAND CreateNamespace` | DDL not allowed in DLT SDP Python | Rewrote as proper `@dlt.table` notebook (no DDL) |
+| 9 | DLT conflict with existing silver tables | Job already created managed tables in same schema | Pointed DLT to dedicated `patient_360_dlt` schema |
