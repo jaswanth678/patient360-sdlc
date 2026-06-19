@@ -1,0 +1,447 @@
+{
+  "datasets": [
+    {
+      "name": "fin_kpi",
+      "displayName": "Financial KPI Summary",
+      "queryLines": [
+        "SELECT ROUND(SUM(total_treatment_cost), 0) AS total_revenue_inr, ",
+        "ROUND(AVG(total_treatment_cost), 0) AS avg_treatment_cost_inr, ",
+        "ROUND(AVG(insurance_coverage_pct) / 100, 4) AS avg_insurance_pct, ",
+        "SUM(paid_bills) AS total_paid_bills, ",
+        "SUM(total_bills) AS total_bills, ",
+        "SUM(upi_payments) AS total_upi_payments, ",
+        "SUM(cash_payments) AS total_cash_payments ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary"
+      ]
+    },
+    {
+      "name": "fin_by_state",
+      "displayName": "Revenue & Patients by State",
+      "queryLines": [
+        "SELECT m.state, ",
+        "COUNT(DISTINCT m.patient_id) AS patient_count, ",
+        "ROUND(SUM(f.total_treatment_cost), 0) AS total_revenue_inr, ",
+        "ROUND(AVG(f.total_treatment_cost), 0) AS avg_treatment_cost_inr, ",
+        "ROUND(AVG(f.insurance_coverage_pct) / 100, 4) AS avg_insurance_pct, ",
+        "SUM(f.paid_bills) AS paid_bills, ",
+        "SUM(f.total_bills) AS total_bills ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master m ",
+        "JOIN sdlc_catalog.patient_360_gold.patient_financial_summary f ON m.patient_id = f.patient_id ",
+        "WHERE m.state IS NOT NULL ",
+        "GROUP BY m.state ",
+        "ORDER BY total_revenue_inr DESC"
+      ]
+    },
+    {
+      "name": "fin_payment_mode",
+      "displayName": "Payment Mode Distribution",
+      "queryLines": [
+        "SELECT 'UPI' AS payment_mode, SUM(upi_payments) AS transaction_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary ",
+        "UNION ALL ",
+        "SELECT 'CASH' AS payment_mode, SUM(cash_payments) AS transaction_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary"
+      ]
+    },
+    {
+      "name": "fin_rev_trend",
+      "displayName": "Monthly Revenue Trend",
+      "queryLines": [
+        "SELECT DATE_TRUNC('MONTH', m.last_appointment_date) AS revenue_month, ",
+        "ROUND(SUM(f.total_treatment_cost), 0) AS monthly_revenue, ",
+        "COUNT(DISTINCT f.patient_id) AS patient_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary f ",
+        "JOIN sdlc_catalog.patient_360_gold.patient_360_master m ON f.patient_id = m.patient_id ",
+        "WHERE m.last_appointment_date IS NOT NULL ",
+        "GROUP BY DATE_TRUNC('MONTH', m.last_appointment_date) ",
+        "ORDER BY revenue_month"
+      ]
+    },
+    {
+      "name": "fin_patient_detail",
+      "displayName": "Patient Financial Detail",
+      "queryLines": [
+        "SELECT f.patient_id, m.state, ",
+        "ROUND(f.total_treatment_cost, 0) AS total_cost, ",
+        "ROUND(f.total_insurance_coverage, 0) AS insurance_covered, ",
+        "ROUND(f.total_treatment_cost - f.total_insurance_coverage, 0) AS out_of_pocket, ",
+        "ROUND(f.insurance_coverage_pct, 2) AS coverage_pct, ",
+        "f.upi_payments, f.cash_payments, ",
+        "f.paid_bills, f.total_bills ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary f ",
+        "JOIN sdlc_catalog.patient_360_gold.patient_360_master m ON f.patient_id = m.patient_id ",
+        "ORDER BY out_of_pocket DESC ",
+        "LIMIT 50"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "financial_overview",
+      "displayName": "Financial Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {"lines": ["## Patient360 — Financial Dashboard"]}
+          },
+          "position": {"x": 0, "y": 0, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {"lines": ["Revenue trends, insurance coverage analysis, payment mode distribution, and patient billing details"]}
+          },
+          "position": {"x": 0, "y": 1, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-revenue",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_revenue_inr",
+                  "displayName": "Total Revenue (INR)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "INR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Total Revenue (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-cost",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "avg_treatment_cost_inr", "expression": "`avg_treatment_cost_inr`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_treatment_cost_inr",
+                  "displayName": "Avg Treatment Cost (INR)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "INR",
+                    "decimalPlaces": {"type": "fixed", "places": 0}
+                  }
+                }
+              },
+              "frame": {"title": "Avg Treatment Cost (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-insurance",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "avg_insurance_pct", "expression": "`avg_insurance_pct`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_insurance_pct",
+                  "displayName": "Avg Insurance Coverage",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Avg Insurance Coverage %", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-paid-bills",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "total_paid_bills", "expression": "`total_paid_bills`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_paid_bills",
+                  "displayName": "Paid Bills",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Paid Bills", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-upi-payments",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "total_upi_payments", "expression": "`total_upi_payments`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_upi_payments",
+                  "displayName": "UPI Transactions",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "UPI Transactions", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-cash-payments",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_kpi",
+              "fields": [{"name": "total_cash_payments", "expression": "`total_cash_payments`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_cash_payments",
+                  "displayName": "Cash Transactions",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Cash Transactions", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "section-revenue",
+            "multilineTextboxSpec": {"lines": ["### Revenue Trends & Payment Analysis"]}
+          },
+          "position": {"x": 0, "y": 8, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-rev-trend",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_rev_trend",
+              "fields": [
+                {"name": "revenue_month", "expression": "`revenue_month`"},
+                {"name": "monthly_revenue", "expression": "`monthly_revenue`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "revenue_month", "displayName": "Month", "scale": {"type": "temporal"}},
+                "y": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "monthly_revenue", "displayName": "Revenue (INR)"}]
+                }
+              },
+              "frame": {"title": "Monthly Revenue Trend (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "chart-payment-mode",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_payment_mode",
+              "fields": [
+                {"name": "payment_mode", "expression": "`payment_mode`"},
+                {"name": "transaction_count", "expression": "`transaction_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {"fieldName": "transaction_count", "displayName": "Transactions", "scale": {"type": "quantitative"}},
+                "color": {"fieldName": "payment_mode", "displayName": "Payment Mode", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Payment Mode Distribution (UPI vs Cash)", "showTitle": true}
+            }
+          },
+          "position": {"x": 6, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "section-state-revenue",
+            "multilineTextboxSpec": {"lines": ["### Revenue by State — Select State in Filters to Drill Down"]}
+          },
+          "position": {"x": 0, "y": 15, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-state-revenue",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_by_state",
+              "fields": [
+                {"name": "state", "expression": "`state`"},
+                {"name": "total_revenue_inr", "expression": "`total_revenue_inr`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [
+                    {"fieldName": "total_revenue_inr", "displayName": "Revenue (INR)"},
+                    {"fieldName": "patient_count", "displayName": "Patients"}
+                  ]
+                },
+                "y": {"fieldName": "state", "displayName": "State", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Revenue & Patient Count by State", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 16, "width": 12, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "section-patient-finance",
+            "multilineTextboxSpec": {"lines": ["### Patient Financial Detail — Sorted by Out-of-Pocket Cost (Highest First)"]}
+          },
+          "position": {"x": 0, "y": 21, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "table-patient-finance",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "fin_patient_detail",
+              "fields": [
+                {"name": "patient_id", "expression": "`patient_id`"},
+                {"name": "state", "expression": "`state`"},
+                {"name": "total_cost", "expression": "`total_cost`"},
+                {"name": "insurance_covered", "expression": "`insurance_covered`"},
+                {"name": "out_of_pocket", "expression": "`out_of_pocket`"},
+                {"name": "coverage_pct", "expression": "`coverage_pct`"},
+                {"name": "upi_payments", "expression": "`upi_payments`"},
+                {"name": "cash_payments", "expression": "`cash_payments`"},
+                {"name": "paid_bills", "expression": "`paid_bills`"},
+                {"name": "total_bills", "expression": "`total_bills`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "patient_id", "displayName": "Patient ID"},
+                  {"fieldName": "state", "displayName": "State"},
+                  {"fieldName": "total_cost", "displayName": "Total Cost (INR)"},
+                  {"fieldName": "insurance_covered", "displayName": "Insurance Covered (INR)"},
+                  {"fieldName": "out_of_pocket", "displayName": "Out-of-Pocket (INR)"},
+                  {"fieldName": "coverage_pct", "displayName": "Coverage %"},
+                  {"fieldName": "upi_payments", "displayName": "UPI Payments"},
+                  {"fieldName": "cash_payments", "displayName": "Cash Payments"},
+                  {"fieldName": "paid_bills", "displayName": "Paid Bills"},
+                  {"fieldName": "total_bills", "displayName": "Total Bills"}
+                ]
+              },
+              "frame": {"title": "Patient Financial Detail (Top 50 by Out-of-Pocket)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 22, "width": 12, "height": 6}
+        }
+      ]
+    },
+    {
+      "name": "global_filters",
+      "displayName": "Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter-state",
+            "queries": [{"name": "ds_fin_state", "query": {
+              "datasetName": "fin_by_state",
+              "fields": [{"name": "state", "expression": "`state`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "state",
+                  "displayName": "State",
+                  "queryName": "ds_fin_state"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "State"}
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 4, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "filter-payment-mode",
+            "queries": [{"name": "ds_payment", "query": {
+              "datasetName": "fin_payment_mode",
+              "fields": [{"name": "payment_mode", "expression": "`payment_mode`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "payment_mode",
+                  "displayName": "Payment Mode",
+                  "queryName": "ds_payment"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "Payment Mode"}
+            }
+          },
+          "position": {"x": 4, "y": 0, "width": 4, "height": 2}
+        }
+      ]
+    }
+  ]
+}

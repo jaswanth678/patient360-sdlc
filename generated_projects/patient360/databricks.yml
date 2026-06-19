@@ -1,6 +1,9 @@
 bundle:
   name: patient360
 
+include:
+  - resources/jobs.yml
+
 variables:
   catalog_name:
     default: sdlc_catalog
@@ -16,6 +19,9 @@ variables:
     default: ""
   notification_email:
     default: ""
+  warehouse_id:
+    default: ""
+    description: "SQL Warehouse ID for AI/BI dashboard query execution"
 
 targets:
   dev:
@@ -23,24 +29,47 @@ targets:
     default: true
     variables:
       catalog_name: sdlc_catalog
+      warehouse_id: 5e872471aabd37ad
+      notification_email: jaswanthkadali@gmail.com
     workspace:
-      host: ${var.databricks_host}
+      host: https://dbc-b779df5b-df6a.cloud.databricks.com
 
   qa:
     mode: staging
     variables:
       catalog_name: sdlc_catalog
     workspace:
-      host: ${var.databricks_host}
+      host: https://dbc-b779df5b-df6a.cloud.databricks.com
 
   prod:
     mode: production
     variables:
       catalog_name: sdlc_catalog
     workspace:
-      host: ${var.databricks_host}
+      host: https://dbc-b779df5b-df6a.cloud.databricks.com
 
 resources:
-  jobs:
-    patient360_pipeline:
-      $ref: resources/jobs.yml
+  dashboards:
+    executive_dashboard:
+      display_name: "Patient360 - Executive Dashboard [${bundle.target}]"
+      file_path: ./dashboards/patient360_executive.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: false
+
+    clinical_dashboard:
+      display_name: "Patient360 - Clinical Dashboard [${bundle.target}]"
+      file_path: ./dashboards/patient360_clinical.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: false
+
+    operational_dashboard:
+      display_name: "Patient360 - Operational Dashboard [${bundle.target}]"
+      file_path: ./dashboards/patient360_operational.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: false
+
+    financial_dashboard:
+      display_name: "Patient360 - Financial Dashboard [${bundle.target}]"
+      file_path: ./dashboards/patient360_financial.lvdash.json
+      warehouse_id: ${var.warehouse_id}
+      embed_credentials: false

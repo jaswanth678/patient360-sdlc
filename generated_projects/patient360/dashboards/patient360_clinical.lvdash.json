@@ -1,0 +1,433 @@
+{
+  "datasets": [
+    {
+      "name": "clin_kpi_lab",
+      "displayName": "Clinical KPI — Lab & Diagnoses",
+      "queryLines": [
+        "SELECT COUNT(patient_id) AS total_patients, ",
+        "SUM(unique_diseases) AS total_disease_records, ",
+        "ROUND(SUM(above_normal_count + below_normal_count) * 100.0 / NULLIF(SUM(total_lab_tests), 0), 2) / 100 AS lab_abnormality_pct, ",
+        "COUNT(CASE WHEN lab_risk_flag = true THEN patient_id END) AS lab_risk_patients, ",
+        "SUM(active_med_count) AS total_active_medications ",
+        "FROM sdlc_catalog.patient_360_gold.patient_clinical_summary"
+      ]
+    },
+    {
+      "name": "clin_kpi_adherence",
+      "displayName": "Clinical KPI — Medication Adherence",
+      "queryLines": [
+        "SELECT ROUND(AVG(adherence_rate) / 100, 4) AS avg_adherence_rate ",
+        "FROM sdlc_catalog.patient_360_gold.medication_adherence_summary ",
+        "WHERE disease IS NOT NULL AND disease != ''"
+      ]
+    },
+    {
+      "name": "clin_by_risk",
+      "displayName": "Patient Risk Category Summary",
+      "queryLines": [
+        "SELECT risk_category, ",
+        "COUNT(patient_id) AS patient_count, ",
+        "ROUND(AVG(overall_risk_score), 2) AS avg_risk_score ",
+        "FROM sdlc_catalog.patient_360_gold.patient_risk_summary ",
+        "GROUP BY risk_category ",
+        "ORDER BY avg_risk_score DESC"
+      ]
+    },
+    {
+      "name": "clin_disease_dist",
+      "displayName": "Disease Distribution",
+      "queryLines": [
+        "SELECT primary_disease, ",
+        "COUNT(DISTINCT patient_id) AS patient_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master ",
+        "WHERE primary_disease IS NOT NULL ",
+        "GROUP BY primary_disease ",
+        "ORDER BY patient_count DESC ",
+        "LIMIT 10"
+      ]
+    },
+    {
+      "name": "clin_adherence_detail",
+      "displayName": "Medication Adherence by Disease",
+      "queryLines": [
+        "SELECT disease, ",
+        "COUNT(DISTINCT patient_id) AS patient_count, ",
+        "ROUND(AVG(adherence_rate) / 100, 4) AS avg_adherence_rate, ",
+        "ROUND(SUM(total_medicine_cost), 0) AS total_medicine_cost ",
+        "FROM sdlc_catalog.patient_360_gold.medication_adherence_summary ",
+        "WHERE disease IS NOT NULL AND disease != '' ",
+        "GROUP BY disease ",
+        "ORDER BY avg_adherence_rate ASC"
+      ]
+    },
+    {
+      "name": "clin_risk_detail",
+      "displayName": "Patient Risk Detail",
+      "queryLines": [
+        "SELECT r.patient_id, r.risk_category, r.overall_risk_score, ",
+        "r.age_risk, r.lab_risk, r.financial_risk, ",
+        "m.total_appointments, ",
+        "ROUND(m.total_treatment_cost, 0) AS total_treatment_cost ",
+        "FROM sdlc_catalog.patient_360_gold.patient_risk_summary r ",
+        "JOIN sdlc_catalog.patient_360_gold.patient_360_master m ON r.patient_id = m.patient_id ",
+        "ORDER BY r.overall_risk_score DESC ",
+        "LIMIT 50"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "clinical_overview",
+      "displayName": "Clinical Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {"lines": ["## Patient360 — Clinical Dashboard"]}
+          },
+          "position": {"x": 0, "y": 0, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {"lines": ["Clinical analysis: disease distribution, lab trends, risk stratification, and medication adherence"]}
+          },
+          "position": {"x": 0, "y": 1, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "kpi-lab-risk-patients",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_kpi_lab",
+              "fields": [{"name": "lab_risk_patients", "expression": "`lab_risk_patients`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "lab_risk_patients",
+                  "displayName": "Lab Risk Patients",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Lab Risk Patients", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-lab-abnormality",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_kpi_lab",
+              "fields": [{"name": "lab_abnormality_pct", "expression": "`lab_abnormality_pct`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "lab_abnormality_pct",
+                  "displayName": "Lab Abnormality Rate",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Lab Abnormality Rate", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-adherence",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_kpi_adherence",
+              "fields": [{"name": "avg_adherence_rate", "expression": "`avg_adherence_rate`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_adherence_rate",
+                  "displayName": "Avg Medication Adherence",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {"type": "max", "places": 1}
+                  }
+                }
+              },
+              "frame": {"title": "Avg Medication Adherence %", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-unique-diseases",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_disease_dist",
+              "fields": [{"name": "count(primary_disease)", "expression": "COUNT(`primary_disease`)"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(primary_disease)",
+                  "displayName": "Unique Diseases",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Unique Diseases (Top 10)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-active-meds",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_kpi_lab",
+              "fields": [{"name": "total_active_medications", "expression": "`total_active_medications`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_active_medications",
+                  "displayName": "Active Medications",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Active Medications", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-disease-records",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_kpi_lab",
+              "fields": [{"name": "total_disease_records", "expression": "`total_disease_records`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_disease_records",
+                  "displayName": "Total Disease Records",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Diagnosis Records", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "section-disease-risk",
+            "multilineTextboxSpec": {"lines": ["### Disease Distribution & Risk Analysis"]}
+          },
+          "position": {"x": 0, "y": 8, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-disease-dist",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_disease_dist",
+              "fields": [
+                {"name": "primary_disease", "expression": "`primary_disease`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {"fieldName": "patient_count", "displayName": "Patients", "scale": {"type": "quantitative"}},
+                "color": {"fieldName": "primary_disease", "displayName": "Disease", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Disease Distribution (Top 10)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "chart-risk-categories",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_by_risk",
+              "fields": [
+                {"name": "risk_category", "expression": "`risk_category`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "risk_category", "displayName": "Risk Category", "scale": {"type": "categorical"}},
+                "y": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "patient_count", "displayName": "Patient Count"}]
+                }
+              },
+              "frame": {"title": "Patient Risk Category Distribution", "showTitle": true}
+            }
+          },
+          "position": {"x": 6, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "section-adherence",
+            "multilineTextboxSpec": {"lines": ["### Medication Adherence by Disease — Lower = Needs Attention"]}
+          },
+          "position": {"x": 0, "y": 15, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-adherence-by-disease",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_adherence_detail",
+              "fields": [
+                {"name": "disease", "expression": "`disease`"},
+                {"name": "avg_adherence_rate", "expression": "`avg_adherence_rate`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "avg_adherence_rate", "displayName": "Adherence Rate"}]
+                },
+                "y": {"fieldName": "disease", "displayName": "Disease", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Medication Adherence Rate by Disease", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 16, "width": 12, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "section-risk-detail",
+            "multilineTextboxSpec": {"lines": ["### Patient Risk Detail — Select Risk Category in Filters to Drill Down"]}
+          },
+          "position": {"x": 0, "y": 21, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "table-risk-detail",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "clin_risk_detail",
+              "fields": [
+                {"name": "patient_id", "expression": "`patient_id`"},
+                {"name": "risk_category", "expression": "`risk_category`"},
+                {"name": "overall_risk_score", "expression": "`overall_risk_score`"},
+                {"name": "age_risk", "expression": "`age_risk`"},
+                {"name": "lab_risk", "expression": "`lab_risk`"},
+                {"name": "financial_risk", "expression": "`financial_risk`"},
+                {"name": "total_appointments", "expression": "`total_appointments`"},
+                {"name": "total_treatment_cost", "expression": "`total_treatment_cost`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "patient_id", "displayName": "Patient ID"},
+                  {"fieldName": "risk_category", "displayName": "Risk Category"},
+                  {"fieldName": "overall_risk_score", "displayName": "Risk Score"},
+                  {"fieldName": "age_risk", "displayName": "Age Risk"},
+                  {"fieldName": "lab_risk", "displayName": "Lab Risk"},
+                  {"fieldName": "financial_risk", "displayName": "Financial Risk"},
+                  {"fieldName": "total_appointments", "displayName": "Appointments"},
+                  {"fieldName": "total_treatment_cost", "displayName": "Treatment Cost (INR)"}
+                ]
+              },
+              "frame": {"title": "Patient Risk Detail (Top 50 by Score)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 22, "width": 12, "height": 6}
+        }
+      ]
+    },
+    {
+      "name": "global_filters",
+      "displayName": "Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter-risk-category",
+            "queries": [{"name": "ds_risk_cat", "query": {
+              "datasetName": "clin_by_risk",
+              "fields": [{"name": "risk_category", "expression": "`risk_category`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "risk_category",
+                  "displayName": "Risk Category",
+                  "queryName": "ds_risk_cat"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "Risk Category"}
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 4, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "filter-disease",
+            "queries": [{"name": "ds_disease", "query": {
+              "datasetName": "clin_disease_dist",
+              "fields": [{"name": "primary_disease", "expression": "`primary_disease`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "primary_disease",
+                  "displayName": "Disease",
+                  "queryName": "ds_disease"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "Disease"}
+            }
+          },
+          "position": {"x": 4, "y": 0, "width": 4, "height": 2}
+        }
+      ]
+    }
+  ]
+}

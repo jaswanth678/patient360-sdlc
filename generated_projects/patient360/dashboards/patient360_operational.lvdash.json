@@ -1,0 +1,400 @@
+{
+  "datasets": [
+    {
+      "name": "op_kpi",
+      "displayName": "Operational KPI Summary",
+      "queryLines": [
+        "SELECT COUNT(DISTINCT doctor_name) AS total_doctors, ",
+        "COUNT(DISTINCT department) AS total_departments, ",
+        "SUM(total_appointments) AS total_appointments, ",
+        "SUM(unique_patients) AS total_unique_patients, ",
+        "ROUND(SUM(total_revenue_inr), 0) AS total_revenue_inr ",
+        "FROM sdlc_catalog.patient_360_gold.doctor_performance_summary"
+      ]
+    },
+    {
+      "name": "op_by_dept",
+      "displayName": "Department Workload",
+      "queryLines": [
+        "SELECT department, ",
+        "SUM(total_appointments) AS total_appointments, ",
+        "COUNT(DISTINCT doctore_id) AS doctor_count, ",
+        "SUM(unique_patients) AS total_patients ",
+        "FROM sdlc_catalog.patient_360_gold.doctor_performance_summary ",
+        "GROUP BY department ",
+        "ORDER BY total_appointments DESC"
+      ]
+    },
+    {
+      "name": "op_doctor_perf",
+      "displayName": "Doctor Performance",
+      "queryLines": [
+        "SELECT doctor_name, department, ",
+        "total_appointments, unique_patients, ",
+        "ROUND(avg_charge_inr, 0) AS avg_charge_inr, ",
+        "ROUND(total_revenue_inr, 0) AS total_revenue_inr ",
+        "FROM sdlc_catalog.patient_360_gold.doctor_performance_summary ",
+        "ORDER BY total_appointments DESC ",
+        "LIMIT 15"
+      ]
+    },
+    {
+      "name": "op_revenue_by_doctor",
+      "displayName": "Revenue by Doctor",
+      "queryLines": [
+        "SELECT doctor_name, ",
+        "ROUND(total_revenue_inr, 0) AS total_revenue_inr, ",
+        "total_appointments ",
+        "FROM sdlc_catalog.patient_360_gold.doctor_performance_summary ",
+        "WHERE total_revenue_inr IS NOT NULL ",
+        "ORDER BY total_revenue_inr DESC ",
+        "LIMIT 12"
+      ]
+    },
+    {
+      "name": "op_age_dist_master",
+      "displayName": "Patient Age Distribution",
+      "queryLines": [
+        "SELECT CASE WHEN age < 18 THEN '0-17' WHEN age < 35 THEN '18-34' ",
+        "WHEN age < 50 THEN '35-49' WHEN age < 65 THEN '50-64' ELSE '65+' END AS age_group, ",
+        "COUNT(patient_id) AS patient_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master ",
+        "GROUP BY 1 ORDER BY 1"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "operational_overview",
+      "displayName": "Operational Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {"lines": ["## Patient360 — Operational Dashboard"]}
+          },
+          "position": {"x": 0, "y": 0, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {"lines": ["Doctor performance, department workload, and patient visit patterns for operational administrators"]}
+          },
+          "position": {"x": 0, "y": 1, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-doctors",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_kpi",
+              "fields": [{"name": "total_doctors", "expression": "`total_doctors`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_doctors",
+                  "displayName": "Total Doctors",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Active Doctors", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-appointments",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_kpi",
+              "fields": [{"name": "total_appointments", "expression": "`total_appointments`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_appointments",
+                  "displayName": "Total Appointments",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Appointments", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-departments",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_kpi",
+              "fields": [{"name": "total_departments", "expression": "`total_departments`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_departments",
+                  "displayName": "Active Departments",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Active Departments", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-unique-patients",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_kpi",
+              "fields": [{"name": "total_unique_patients", "expression": "`total_unique_patients`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_unique_patients",
+                  "displayName": "Unique Patients",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Unique Patients", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-op-revenue",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_kpi",
+              "fields": [{"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_revenue_inr",
+                  "displayName": "Total Doctor Revenue (INR)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "INR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Total Doctor Revenue (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-appts-per-dept",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_by_dept",
+              "fields": [{"name": "avg(total_appointments)", "expression": "AVG(`total_appointments`)"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(total_appointments)",
+                  "displayName": "Avg Appts per Department",
+                  "format": {"type": "number", "decimalPlaces": {"type": "fixed", "places": 1}}
+                }
+              },
+              "frame": {"title": "Avg Appointments per Department", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "section-workload",
+            "multilineTextboxSpec": {"lines": ["### Department & Doctor Workload — Select Department in Filters to Drill Down"]}
+          },
+          "position": {"x": 0, "y": 8, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-dept-workload",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_by_dept",
+              "fields": [
+                {"name": "department", "expression": "`department`"},
+                {"name": "total_appointments", "expression": "`total_appointments`"},
+                {"name": "doctor_count", "expression": "`doctor_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [
+                    {"fieldName": "total_appointments", "displayName": "Appointments"},
+                    {"fieldName": "doctor_count", "displayName": "Doctors"}
+                  ]
+                },
+                "y": {"fieldName": "department", "displayName": "Department", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Department Workload (Appointments vs Doctors)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "chart-revenue-by-doctor",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_revenue_by_doctor",
+              "fields": [
+                {"name": "doctor_name", "expression": "`doctor_name`"},
+                {"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "total_revenue_inr", "displayName": "Revenue (INR)"}]
+                },
+                "y": {"fieldName": "doctor_name", "displayName": "Doctor", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Revenue by Doctor (Top 12)", "showTitle": true}
+            }
+          },
+          "position": {"x": 6, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "section-age-dist",
+            "multilineTextboxSpec": {"lines": ["### Patient Age Distribution"]}
+          },
+          "position": {"x": 0, "y": 15, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-patient-age-dist",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_age_dist_master",
+              "fields": [
+                {"name": "age_group", "expression": "`age_group`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "age_group", "displayName": "Age Group", "scale": {"type": "categorical"}},
+                "y": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "patient_count", "displayName": "Patients"}]
+                }
+              },
+              "frame": {"title": "Patient Age Group Distribution", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 16, "width": 12, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "section-doctor-detail",
+            "multilineTextboxSpec": {"lines": ["### Doctor Performance Detail"]}
+          },
+          "position": {"x": 0, "y": 21, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "table-doctor-perf",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "op_doctor_perf",
+              "fields": [
+                {"name": "doctor_name", "expression": "`doctor_name`"},
+                {"name": "department", "expression": "`department`"},
+                {"name": "total_appointments", "expression": "`total_appointments`"},
+                {"name": "unique_patients", "expression": "`unique_patients`"},
+                {"name": "avg_charge_inr", "expression": "`avg_charge_inr`"},
+                {"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "doctor_name", "displayName": "Doctor Name"},
+                  {"fieldName": "department", "displayName": "Department"},
+                  {"fieldName": "total_appointments", "displayName": "Appointments"},
+                  {"fieldName": "unique_patients", "displayName": "Unique Patients"},
+                  {"fieldName": "avg_charge_inr", "displayName": "Avg Charge (INR)"},
+                  {"fieldName": "total_revenue_inr", "displayName": "Total Revenue (INR)"}
+                ]
+              },
+              "frame": {"title": "Doctor Performance Detail (Top 15)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 22, "width": 12, "height": 6}
+        }
+      ]
+    },
+    {
+      "name": "global_filters",
+      "displayName": "Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter-department",
+            "queries": [{"name": "ds_dept", "query": {
+              "datasetName": "op_by_dept",
+              "fields": [{"name": "department", "expression": "`department`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "department",
+                  "displayName": "Department",
+                  "queryName": "ds_dept"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "Department"}
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 4, "height": 2}
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,455 @@
+{
+  "datasets": [
+    {
+      "name": "exec_kpi",
+      "displayName": "Executive KPI — Patient Counts",
+      "queryLines": [
+        "SELECT COUNT(DISTINCT patient_id) AS total_patients, ",
+        "SUM(total_appointments) AS total_appointments, ",
+        "COUNT(DISTINCT CASE WHEN last_appointment_date >= date_sub(current_date(), 90) THEN patient_id END) AS active_patients ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master"
+      ]
+    },
+    {
+      "name": "exec_kpi_fin",
+      "displayName": "Executive KPI — Financial",
+      "queryLines": [
+        "SELECT ROUND(SUM(total_treatment_cost), 0) AS total_revenue_inr, ",
+        "ROUND(AVG(total_treatment_cost), 0) AS avg_treatment_cost_inr, ",
+        "ROUND(AVG(insurance_coverage_pct) / 100, 4) AS avg_insurance_pct ",
+        "FROM sdlc_catalog.patient_360_gold.patient_financial_summary"
+      ]
+    },
+    {
+      "name": "exec_by_state",
+      "displayName": "Patients & Revenue by State",
+      "queryLines": [
+        "SELECT m.state, ",
+        "COUNT(DISTINCT m.patient_id) AS patient_count, ",
+        "SUM(m.total_appointments) AS total_appointments, ",
+        "ROUND(SUM(f.total_treatment_cost), 0) AS total_revenue_inr, ",
+        "ROUND(AVG(f.total_treatment_cost), 0) AS avg_treatment_cost_inr ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master m ",
+        "JOIN sdlc_catalog.patient_360_gold.patient_financial_summary f ON m.patient_id = f.patient_id ",
+        "WHERE m.state IS NOT NULL ",
+        "GROUP BY m.state ",
+        "ORDER BY total_revenue_inr DESC"
+      ]
+    },
+    {
+      "name": "exec_appt_trend",
+      "displayName": "Monthly Patient Trend",
+      "queryLines": [
+        "SELECT DATE_TRUNC('MONTH', last_appointment_date) AS appt_month, ",
+        "COUNT(DISTINCT patient_id) AS patient_count, ",
+        "SUM(total_appointments) AS total_appointments ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master ",
+        "WHERE last_appointment_date IS NOT NULL ",
+        "GROUP BY DATE_TRUNC('MONTH', last_appointment_date) ",
+        "ORDER BY appt_month"
+      ]
+    },
+    {
+      "name": "exec_age_dist",
+      "displayName": "Patient Age Distribution",
+      "queryLines": [
+        "SELECT CASE WHEN age < 18 THEN '0-17' WHEN age < 35 THEN '18-34' ",
+        "WHEN age < 50 THEN '35-49' WHEN age < 65 THEN '50-64' ELSE '65+' END AS age_group, ",
+        "COUNT(patient_id) AS patient_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master ",
+        "GROUP BY 1 ORDER BY 1"
+      ]
+    },
+    {
+      "name": "exec_sex_dist",
+      "displayName": "Patient Sex Distribution",
+      "queryLines": [
+        "SELECT COALESCE(sex, 'Unknown') AS sex, ",
+        "COUNT(DISTINCT patient_id) AS patient_count ",
+        "FROM sdlc_catalog.patient_360_gold.patient_360_master ",
+        "GROUP BY sex ORDER BY patient_count DESC"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "executive_overview",
+      "displayName": "Executive Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {"lines": ["## Patient360 — Executive Dashboard"]}
+          },
+          "position": {"x": 0, "y": 0, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {"lines": ["C-level overview of patient operations, revenue and appointment trends across all states"]}
+          },
+          "position": {"x": 0, "y": 1, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-patients",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi",
+              "fields": [{"name": "total_patients", "expression": "`total_patients`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_patients",
+                  "displayName": "Total Patients",
+                  "format": {"type": "number", "abbreviation": "compact"}
+                }
+              },
+              "frame": {"title": "Total Patients", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-revenue",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi_fin",
+              "fields": [{"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_revenue_inr",
+                  "displayName": "Total Revenue (INR)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "INR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Total Revenue (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-active-patients",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi",
+              "fields": [{"name": "active_patients", "expression": "`active_patients`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "active_patients",
+                  "displayName": "Active Patients (90d)",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Active Patients (Last 90 Days)", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 2, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-total-appointments",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi",
+              "fields": [{"name": "total_appointments", "expression": "`total_appointments`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_appointments",
+                  "displayName": "Total Appointments",
+                  "format": {"type": "number"}
+                }
+              },
+              "frame": {"title": "Total Appointments", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-avg-cost",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi_fin",
+              "fields": [{"name": "avg_treatment_cost_inr", "expression": "`avg_treatment_cost_inr`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_treatment_cost_inr",
+                  "displayName": "Avg Treatment Cost (INR)",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "INR",
+                    "decimalPlaces": {"type": "fixed", "places": 0}
+                  }
+                }
+              },
+              "frame": {"title": "Avg Treatment Cost (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 4, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "kpi-insurance-pct",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_kpi_fin",
+              "fields": [{"name": "avg_insurance_pct", "expression": "`avg_insurance_pct`"}],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg_insurance_pct",
+                  "displayName": "Avg Insurance Coverage",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {"type": "max", "places": 2}
+                  }
+                }
+              },
+              "frame": {"title": "Avg Insurance Coverage %", "showTitle": true}
+            }
+          },
+          "position": {"x": 8, "y": 5, "width": 4, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "section-trends",
+            "multilineTextboxSpec": {"lines": ["### Revenue & Appointment Trends"]}
+          },
+          "position": {"x": 0, "y": 8, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-revenue-by-state",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_by_state",
+              "fields": [
+                {"name": "state", "expression": "`state`"},
+                {"name": "total_revenue_inr", "expression": "`total_revenue_inr`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "total_revenue_inr", "displayName": "Revenue (INR)"}]
+                },
+                "y": {"fieldName": "state", "displayName": "State", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Revenue by State (INR)", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "chart-appt-trend",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_appt_trend",
+              "fields": [
+                {"name": "appt_month", "expression": "`appt_month`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "appt_month", "displayName": "Month", "scale": {"type": "temporal"}},
+                "y": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "patient_count", "displayName": "Active Patients"}]
+                }
+              },
+              "frame": {"title": "Monthly Patient Activity Trend", "showTitle": true}
+            }
+          },
+          "position": {"x": 6, "y": 9, "width": 6, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "section-demographics",
+            "multilineTextboxSpec": {"lines": ["### Patient Demographics"]}
+          },
+          "position": {"x": 0, "y": 15, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "chart-age-dist",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_age_dist",
+              "fields": [
+                {"name": "age_group", "expression": "`age_group`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "age_group", "displayName": "Age Group", "scale": {"type": "categorical"}},
+                "y": {
+                  "scale": {"type": "quantitative"},
+                  "fields": [{"fieldName": "patient_count", "displayName": "Patients"}]
+                }
+              },
+              "frame": {"title": "Patient Age Distribution", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 16, "width": 6, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "chart-sex-dist",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_sex_dist",
+              "fields": [
+                {"name": "sex", "expression": "`sex`"},
+                {"name": "patient_count", "expression": "`patient_count`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {"fieldName": "patient_count", "displayName": "Patient Count", "scale": {"type": "quantitative"}},
+                "color": {"fieldName": "sex", "displayName": "Sex", "scale": {"type": "categorical"}}
+              },
+              "frame": {"title": "Patient Sex Distribution", "showTitle": true}
+            }
+          },
+          "position": {"x": 6, "y": 16, "width": 6, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "section-state-detail",
+            "multilineTextboxSpec": {"lines": ["### State-Level Detail — Drill Down by Selecting a State in Filters"]}
+          },
+          "position": {"x": 0, "y": 21, "width": 12, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "table-state-revenue",
+            "queries": [{"name": "main_query", "query": {
+              "datasetName": "exec_by_state",
+              "fields": [
+                {"name": "state", "expression": "`state`"},
+                {"name": "patient_count", "expression": "`patient_count`"},
+                {"name": "total_appointments", "expression": "`total_appointments`"},
+                {"name": "total_revenue_inr", "expression": "`total_revenue_inr`"},
+                {"name": "avg_treatment_cost_inr", "expression": "`avg_treatment_cost_inr`"}
+              ],
+              "disaggregated": true
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "state", "displayName": "State"},
+                  {"fieldName": "patient_count", "displayName": "Patients"},
+                  {"fieldName": "total_appointments", "displayName": "Appointments"},
+                  {"fieldName": "total_revenue_inr", "displayName": "Total Revenue (INR)"},
+                  {"fieldName": "avg_treatment_cost_inr", "displayName": "Avg Cost (INR)"}
+                ]
+              },
+              "frame": {"title": "State Revenue Summary", "showTitle": true}
+            }
+          },
+          "position": {"x": 0, "y": 22, "width": 12, "height": 6}
+        }
+      ]
+    },
+    {
+      "name": "global_filters",
+      "displayName": "Filters",
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "filter-state",
+            "queries": [{"name": "ds_exec_state", "query": {
+              "datasetName": "exec_by_state",
+              "fields": [{"name": "state", "expression": "`state`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "state",
+                  "displayName": "State",
+                  "queryName": "ds_exec_state"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "State"}
+            }
+          },
+          "position": {"x": 0, "y": 0, "width": 4, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "filter-sex",
+            "queries": [{"name": "ds_exec_sex", "query": {
+              "datasetName": "exec_sex_dist",
+              "fields": [{"name": "sex", "expression": "`sex`"}],
+              "disaggregated": false
+            }}],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{
+                  "fieldName": "sex",
+                  "displayName": "Sex",
+                  "queryName": "ds_exec_sex"
+                }]
+              },
+              "frame": {"showTitle": true, "title": "Sex"}
+            }
+          },
+          "position": {"x": 4, "y": 0, "width": 4, "height": 2}
+        }
+      ]
+    }
+  ]
+}
