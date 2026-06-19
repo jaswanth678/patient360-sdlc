@@ -4,7 +4,8 @@ End-to-end healthcare analytics platform on Databricks using Medallion Architect
 
 **Workspace:** https://dbc-b779df5b-df6a.cloud.databricks.com  
 **Catalog:** `sdlc_catalog`  
-**Deployment:** Databricks Asset Bundle (DAB) — `databricks bundle deploy --target dev`
+**Project path:** `generated_projects/patient360/`  
+**Deployment:** `databricks bundle deploy --target dev`
 
 ---
 
@@ -59,7 +60,7 @@ End-to-end healthcare analytics platform on Databricks using Medallion Architect
 ## Project Structure
 
 ```
-patient360/
+generated_projects/patient360/
 ├── databricks.yml                  # DAB bundle — jobs + 4 dashboards
 ├── resources/
 │   └── jobs.yml                    # Pipeline job task definitions
@@ -83,7 +84,6 @@ patient360/
 │   ├── dashboard_kpis.yml                  # KPI definitions
 │   ├── dashboard_filters.yml               # Filter definitions
 │   ├── dashboard_queries.sql               # Source query spec
-│   ├── dashboard_layout.json               # Layout spec
 │   └── dashboard_documentation.md         # Dashboard field reference
 ├── tests/
 │   ├── conftest.py
@@ -98,14 +98,13 @@ patient360/
 │   ├── PRD.md                      # Product Requirements Document
 │   ├── runbook.md                  # Operational runbook
 │   └── source_to_target_mapping.md # Column-level data lineage
-├── .github/
-│   └── workflows/
-│       ├── validate.yml            # PR validation
-│       ├── unit-test.yml           # Unit test runner
-│       ├── deploy-dev.yml          # Auto-deploy to dev on merge
-│       ├── deploy-qa.yml           # QA deployment
-│       └── deploy-prod.yml         # Production deployment
-└── README.md                       # This file
+└── .github/
+    └── workflows/
+        ├── validate.yml            # PR validation
+        ├── unit-test.yml           # Unit test runner
+        ├── deploy-dev.yml          # Auto-deploy to dev on merge
+        ├── deploy-qa.yml           # QA deployment
+        └── deploy-prod.yml         # Production deployment
 ```
 
 ---
@@ -199,7 +198,7 @@ All dashboards source exclusively from `sdlc_catalog.patient_360_gold`.
 
 ## Data Quality Framework
 
-8 rules enforced at Silver layer via the config-driven `dq_rules_engine.py`. Failures are quarantined to `dq_rejection_log` — never silently dropped.
+8 rules enforced at Silver layer via config-driven `dq_rules_engine.py`. Failures quarantined to `dq_rejection_log` — never silently dropped.
 
 | Rule | Table | Condition |
 |------|-------|-----------|
@@ -226,6 +225,8 @@ All dashboards source exclusively from `sdlc_catalog.patient_360_gold`.
 ### Deploy to DEV
 
 ```bash
+cd generated_projects/patient360
+
 # Validate bundle (zero-error check)
 databricks bundle validate --profile DEFAULT
 
@@ -249,6 +250,7 @@ databricks bundle deploy --target prod --profile DEFAULT
 ### Run Tests Locally
 
 ```bash
+cd generated_projects/patient360
 pip install pytest pyspark==3.5.0 pytest-cov
 pytest tests/ -v --cov=src --cov-report=term-missing
 ```
@@ -282,7 +284,7 @@ The job definition is in `resources/jobs.yml` (included via `include: [resources
 
 ## CI/CD
 
-GitHub Actions workflows in `.github/workflows/`:
+GitHub Actions workflows in `generated_projects/patient360/.github/workflows/`:
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
