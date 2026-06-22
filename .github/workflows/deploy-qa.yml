@@ -1,0 +1,57 @@
+name: Deploy to QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      change_request_id:
+        description: "Change Request ID (e.g. CR-P360-001)"
+        required: true
+        type: string
+
+defaults:
+  run:
+    working-directory: generated_projects/patient360
+
+jobs:
+  deploy-qa:
+    name: Bundle Deploy - QA
+    runs-on: ubuntu-latest
+    environment: qa
+    concurrency:
+      group: deploy-qa
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Log Change Request
+        run: echo "Deploying under Change Request ${{ github.event.inputs.change_request_id }}"
+
+      - name: Validate Bundle
+        run: databricks bundle validate
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
+      - name: Deploy Bundle to QA
+        run: databricks bundle deploy --target qa
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
+      - name: Capture Deployed Resource Summary
+        run: databricks bundle summary --target qa
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
+      - name: Notify Success
+        if: success()
+        run: echo "QA deployment successful — CR ${{ github.event.inputs.change_request_id }}"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "QA deployment FAILED — CR ${{ github.event.inputs.change_request_id }} — review logs"

@@ -1,0 +1,59 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: generated_projects/patient360
+
+jobs:
+  test:
+    name: pytest - Patient360
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov pyspark==3.5.0
+
+      - name: Run unit tests
+        run: pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        env:
+          PYTHONPATH: src
+
+      - name: Check coverage >= 80%
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          pct = float(root.attrib['line-rate']) * 100
+          print(f'Coverage: {pct:.1f}%')
+          assert pct >= 80, f'Coverage {pct:.1f}% is below the 80% minimum'
+          "
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: generated_projects/patient360/coverage.xml
+          fail_ci_if_error: false

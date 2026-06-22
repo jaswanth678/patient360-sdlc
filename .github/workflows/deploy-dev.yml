@@ -1,0 +1,51 @@
+name: Deploy to DEV
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: generated_projects/patient360
+
+jobs:
+  deploy-dev:
+    name: Bundle Deploy - DEV
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Validate Bundle
+        run: databricks bundle validate
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Deploy Bundle to DEV
+        run: databricks bundle deploy --target dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Capture Deployed Resource Summary
+        run: databricks bundle summary --target dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Notify Success
+        if: success()
+        run: echo "DEV deployment successful — all resources deployed via DAB"
+
+      - name: Notify Failure
+        if: failure()
+        run: echo "DEV deployment FAILED — review bundle validate output and fix errors before retrying"
