@@ -9,10 +9,11 @@ from pyspark.sql import DataFrame
 
 dbutils.widgets.text("catalog", "sdlc_catalog")
 dbutils.widgets.text("raw_schema", "patient_360_raw")
+dbutils.widgets.text("bronze_schema", "patient_360_bronze")
 
 CATALOG = dbutils.widgets.get("catalog")
 RAW_SCHEMA = dbutils.widgets.get("raw_schema")
-BRONZE_SCHEMA = "patient_360_bronze"
+BRONZE_SCHEMA = dbutils.widgets.get("bronze_schema")
 
 # COMMAND ----------
 def sanitize_columns(df: DataFrame) -> DataFrame:

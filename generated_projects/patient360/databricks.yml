@@ -11,6 +11,8 @@ variables:
     default: patient_360
   raw_schema:
     default: patient_360_raw
+  bronze_schema:
+    default: patient_360_bronze
   silver_schema:
     default: patient_360_silver
   gold_schema:
@@ -19,6 +21,7 @@ variables:
     default: ""
   notification_email:
     default: ""
+    description: "Email address for job failure/success notifications — must not be empty"
   warehouse_id:
     default: ""
     description: "SQL Warehouse ID for AI/BI dashboard query execution"
@@ -38,6 +41,8 @@ targets:
     mode: staging
     variables:
       catalog_name: sdlc_catalog
+      warehouse_id: 5e872471aabd37ad
+      notification_email: jaswanthkadali@gmail.com
     workspace:
       host: https://dbc-b779df5b-df6a.cloud.databricks.com
 
@@ -45,6 +50,8 @@ targets:
     mode: production
     variables:
       catalog_name: sdlc_catalog
+      warehouse_id: 5e872471aabd37ad
+      notification_email: jaswanthkadali@gmail.com
     workspace:
       host: https://dbc-b779df5b-df6a.cloud.databricks.com
 

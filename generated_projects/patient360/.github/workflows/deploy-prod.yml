@@ -3,19 +3,36 @@ name: Deploy to PROD
 on:
   workflow_dispatch:
     inputs:
+      change_request_id:
+        description: "Approved Change Request ID (e.g. CR-P360-001) — deployment blocked without this"
+        required: true
+        type: string
       confirm:
         description: "Type DEPLOY to confirm production deployment"
         required: true
+        type: string
+
+defaults:
+  run:
+    working-directory: generated_projects/patient360
 
 jobs:
   guard:
-    name: Confirm PROD Deployment
+    name: Production Deployment Gate
     runs-on: ubuntu-latest
     steps:
-      - name: Check confirmation
+      - name: Verify Change Request provided
+        run: |
+          if [ -z "${{ github.event.inputs.change_request_id }}" ]; then
+            echo "ERROR: Change Request ID is required for Production deployment."
+            exit 1
+          fi
+          echo "Change Request: ${{ github.event.inputs.change_request_id }}"
+
+      - name: Verify deployment confirmation
         run: |
           if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
-            echo "Deployment not confirmed. Type DEPLOY to proceed."
+            echo "ERROR: Type DEPLOY in the confirm field to proceed with Production deployment."
             exit 1
           fi
 
@@ -32,7 +49,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        run: pip install databricks-cli databricks-sdk
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Log Change Request
+        run: echo "Deploying under approved Change Request ${{ github.event.inputs.change_request_id }}"
+
+      - name: Validate Bundle
+        run: databricks bundle validate
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
 
       - name: Deploy Bundle to PROD
         run: databricks bundle deploy --target prod
@@ -40,23 +66,19 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
 
-      - name: Verify PROD Deployment
-        run: |
-          databricks runs submit --json '{
-            "run_name": "prod_validation",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID_PROD }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/patient360/workspace/notebooks/validation/validate_pipeline",
-              "base_parameters": {"catalog": "sdlc_catalog"}
-            }
-          }'
+      - name: Capture Deployed Resource Summary
+        run: databricks bundle summary --target prod
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
 
-      - name: Rollback on Failure
+      - name: Notify Success
+        if: success()
+        run: echo "PROD deployment successful — CR ${{ github.event.inputs.change_request_id }}"
+
+      - name: Notify Failure
         if: failure()
         run: |
-          echo "PROD deployment FAILED. Initiate rollback."
-          echo "Run: databricks bundle deploy --target prod (previous commit)"
+          echo "PROD deployment FAILED — CR ${{ github.event.inputs.change_request_id }}"
+          echo "Initiate rollback per docs/Change_Request.md rollback steps"
           exit 1

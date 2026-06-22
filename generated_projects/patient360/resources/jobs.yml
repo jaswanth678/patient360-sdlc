@@ -37,6 +37,7 @@ resources:
             base_parameters:
               catalog: "${var.catalog_name}"
               raw_schema: "${var.raw_schema}"
+              bronze_schema: "${var.bronze_schema}"
           existing_cluster_id: "${var.cluster_id}"
           timeout_seconds: 3600
           max_retries: 1

@@ -97,7 +97,8 @@ generated_projects/patient360/
 │   ├── Deployment_Guide.md         # Step-by-step deploy guide
 │   ├── PRD.md                      # Product Requirements Document
 │   ├── runbook.md                  # Operational runbook
-│   └── source_to_target_mapping.md # Column-level data lineage
+│   ├── source_to_target_mapping.md # Column-level data lineage
+│   └── Change_Request.md           # Change Request for QA/Production deployments
 └── .github/
     └── workflows/
         ├── validate.yml            # PR validation
@@ -319,3 +320,4 @@ GitHub Actions workflows in `generated_projects/patient360/.github/workflows/`:
 | 2026-06-19 | Cleanup | Deleted 1 duplicate job + 7 stale dashboards; removed orphaned `resources/dashboards.yml` |
 | 2026-06-19 | Workspace sync | Uploaded 55 files across 9 directories to `/Workspace/Users/jaswanthkadali@gmail.com/patient360/`; fixed upload path duplication |
 | 2026-06-19 | Pipeline verified | Full end-to-end run (run ID `431584946218301`) completed SUCCESS in 2m 28s — all 5 tasks passed: ingest(29s) → bronze(41s) → silver(31s) → gold(30s) → dashboard_refresh(9s) |
+| 2026-06-22 | Enhancement | Added `domain_mapping.json` (Healthcare domain); added `docs/Change_Request.md` (CR-P360-001); parameterized `bronze_schema` variable in DAB + bronze notebook; fixed CI/CD working directory and modernized CLI install across all 5 workflows |

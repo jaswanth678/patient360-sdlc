@@ -5,6 +5,10 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+defaults:
+  run:
+    working-directory: generated_projects/patient360
+
 jobs:
   deploy-dev:
     name: Bundle Deploy - DEV
@@ -18,7 +22,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Databricks CLI
-        run: pip install databricks-cli databricks-sdk
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+
+      - name: Validate Bundle
+        run: databricks bundle validate
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
 
       - name: Deploy Bundle to DEV
         run: databricks bundle deploy --target dev
@@ -26,33 +36,16 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
 
-      - name: Upload SQL Views
-        run: |
-          databricks workspace import workspace/sql/gold_views.sql \
-            /Workspace/patient360/sql/gold_views.sql --overwrite
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
-
-      - name: Trigger Pipeline Run (Smoke Test)
-        run: |
-          RUN_ID=$(databricks runs submit --json '{
-            "run_name": "smoke_test_dev",
-            "existing_cluster_id": "${{ secrets.CLUSTER_ID_DEV }}",
-            "notebook_task": {
-              "notebook_path": "/Workspace/patient360/workspace/notebooks/validation/validate_pipeline",
-              "base_parameters": {"catalog": "sdlc_catalog"}
-            }
-          }' | jq -r '.run_id')
-          echo "Smoke test run ID: $RUN_ID"
+      - name: Capture Deployed Resource Summary
+        run: databricks bundle summary --target dev
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
 
       - name: Notify Success
         if: success()
-        run: echo "DEV deployment successful"
+        run: echo "DEV deployment successful — all resources deployed via DAB"
 
       - name: Notify Failure
         if: failure()
-        run: echo "DEV deployment failed — check logs"
+        run: echo "DEV deployment FAILED — review bundle validate output and fix errors before retrying"

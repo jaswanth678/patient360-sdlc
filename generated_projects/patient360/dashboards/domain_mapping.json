@@ -1,0 +1,57 @@
+{
+  "domain": "Healthcare",
+  "primary_entity": "Patient",
+  "revenue_metric": "total_treatment_cost",
+  "operational_metric": "total_appointments",
+  "risk_metric": "overall_risk_score",
+  "geography_dimension": "state",
+  "time_dimension": "last_appointment_date",
+  "financial_measures": [
+    "total_treatment_cost",
+    "avg_treatment_cost",
+    "insurance_coverage_pct",
+    "total_insurance_coverage",
+    "out_of_pocket",
+    "medicine_price",
+    "doctor_charge_inr",
+    "total_revenue_inr"
+  ],
+  "operational_measures": [
+    "total_appointments",
+    "total_diagnoses",
+    "total_lab_tests",
+    "total_bills",
+    "unique_patients",
+    "active_medications"
+  ],
+  "risk_measures": [
+    "overall_risk_score",
+    "risk_category",
+    "age_risk",
+    "lab_risk",
+    "financial_risk",
+    "lab_risk_flag",
+    "abnormal_lab_count"
+  ],
+  "entity_measures": [
+    "patient_id",
+    "doctor_id",
+    "appointment_id",
+    "diagnosis_code",
+    "medication_id"
+  ],
+  "gold_tables": [
+    "sdlc_catalog.patient_360_gold.patient_360_master",
+    "sdlc_catalog.patient_360_gold.patient_clinical_summary",
+    "sdlc_catalog.patient_360_gold.patient_financial_summary",
+    "sdlc_catalog.patient_360_gold.doctor_performance_summary",
+    "sdlc_catalog.patient_360_gold.medication_adherence_summary",
+    "sdlc_catalog.patient_360_gold.patient_risk_summary"
+  ],
+  "dashboards": {
+    "executive": "patient360_executive.lvdash.json",
+    "domain": "patient360_clinical.lvdash.json",
+    "operational": "patient360_operational.lvdash.json",
+    "financial": "patient360_financial.lvdash.json"
+  }
+}
