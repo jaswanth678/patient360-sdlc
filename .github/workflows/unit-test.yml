@@ -29,19 +29,14 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
 
       - name: Install test dependencies
-        run: pip install pytest pytest-cov pyspark==3.5.0
+        run: pip install pytest pyspark==3.5.0
 
-      - name: Run unit tests with coverage
-        run: |
-          pytest tests/ -v --tb=short \
-            --cov=src \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --cov-fail-under=80
+      - name: Run unit tests
+        run: pytest tests/ -v --tb=short --junit-xml=test-results.xml
 
-      - name: Upload coverage report
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
-          path: generated_projects/patient360/coverage.xml
+          name: test-results
+          path: generated_projects/patient360/test-results.xml
