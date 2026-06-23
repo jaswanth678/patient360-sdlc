@@ -1,84 +1,116 @@
 name: Deploy to PROD
 
 on:
-  workflow_dispatch:
-    inputs:
-      change_request_id:
-        description: "Approved Change Request ID (e.g. CR-P360-001) — deployment blocked without this"
-        required: true
-        type: string
-      confirm:
-        description: "Type DEPLOY to confirm production deployment"
-        required: true
-        type: string
+  workflow_run:
+    workflows: ["Deploy to QA"]
+    branches: [develop]
+    types: [completed]
 
 defaults:
   run:
     working-directory: generated_projects/patient360
 
 jobs:
-  guard:
-    name: Production Deployment Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify Change Request provided
-        run: |
-          if [ -z "${{ github.event.inputs.change_request_id }}" ]; then
-            echo "ERROR: Change Request ID is required for Production deployment."
-            exit 1
-          fi
-          echo "Change Request: ${{ github.event.inputs.change_request_id }}"
-
-      - name: Verify deployment confirmation
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
-            echo "ERROR: Type DEPLOY in the confirm field to proceed with Production deployment."
-            exit 1
-          fi
-
   deploy-prod:
     name: Bundle Deploy - PROD
     runs-on: ubuntu-latest
-    needs: guard
     environment: prod
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
 
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      - name: Log Change Request
-        run: echo "Deploying under approved Change Request ${{ github.event.inputs.change_request_id }}"
-
       - name: Validate Bundle
-        run: databricks bundle validate
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
+        run: databricks bundle validate --target prod
 
       - name: Deploy Bundle to PROD
         run: databricks bundle deploy --target prod
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
 
       - name: Capture Deployed Resource Summary
         run: databricks bundle summary --target prod
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
 
-      - name: Notify Success
+      - name: Run Pipeline Job (end-to-end verification)
+        run: databricks bundle run patient360_pipeline --target prod
+        timeout-minutes: 60
+
+      - name: Verify Unity Catalog and Gold Tables
+        run: |
+          pip install databricks-sdk --quiet
+          python3 - <<'PYEOF'
+          import os, sys
+          from databricks.sdk import WorkspaceClient
+
+          w = WorkspaceClient(
+              host=os.environ["DATABRICKS_HOST"],
+              token=os.environ["DATABRICKS_TOKEN"]
+          )
+
+          catalog      = "sdlc_catalog"
+          gold_schema  = "patient_360_gold"
+          bronze_schema = "patient_360_bronze"
+          silver_schema = "patient_360_silver"
+          warehouse_id = "5e872471aabd37ad"
+
+          schemas = [s.name for s in w.schemas.list(catalog_name=catalog)]
+          for schema in [bronze_schema, silver_schema, gold_schema]:
+              if schema not in schemas:
+                  print(f"FAIL: Schema not found: {catalog}.{schema}")
+                  sys.exit(1)
+              print(f"OK: Schema exists: {catalog}.{schema}")
+
+          tables = list(w.tables.list(catalog_name=catalog, schema_name=gold_schema))
+          if not tables:
+              print(f"FAIL: No tables in {catalog}.{gold_schema}")
+              sys.exit(1)
+          print(f"OK: Gold tables: {[t.name for t in tables]}")
+
+          resp = w.statement_execution.execute_statement(
+              warehouse_id=warehouse_id,
+              statement=f"SELECT COUNT(*) FROM `{catalog}`.`{gold_schema}`.`{tables[0].name}`",
+              wait_timeout="60s"
+          )
+          count = int(resp.result.data_array[0][0])
+          if count == 0:
+              print(f"FAIL: Gold table {tables[0].name} has 0 rows")
+              sys.exit(1)
+          print(f"OK: Gold table '{tables[0].name}' has {count} rows")
+
+          print("ALL PROD VERIFICATION CHECKS PASSED")
+          PYEOF
+
+      - name: Post Release Notification
         if: success()
-        run: echo "PROD deployment successful — CR ${{ github.event.inputs.change_request_id }}"
+        run: |
+          echo "## PROD Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Project | Patient360 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | prod |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployed By | GitHub Actions |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run ID | ${{ github.run_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Time | $(date -u '+%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pipeline Run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed Resources: Job patient360_pipeline, 4 AI/BI Dashboards, Gold tables in sdlc_catalog.patient_360_gold" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify Failure
         if: failure()
         run: |
-          echo "PROD deployment FAILED — CR ${{ github.event.inputs.change_request_id }}"
-          echo "Initiate rollback per docs/Change_Request.md rollback steps"
+          echo "PROD deployment FAILED — initiate rollback per docs/Change_Request.md"
           exit 1

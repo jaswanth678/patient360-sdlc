@@ -1,12 +1,10 @@
 name: Deploy to QA
 
 on:
-  workflow_dispatch:
-    inputs:
-      change_request_id:
-        description: "Change Request ID (e.g. CR-P360-001)"
-        required: true
-        type: string
+  workflow_run:
+    workflows: ["Deploy to DEV"]
+    branches: [develop]
+    types: [completed]
 
 defaults:
   run:
@@ -17,41 +15,122 @@ jobs:
     name: Bundle Deploy - QA
     runs-on: ubuntu-latest
     environment: qa
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     concurrency:
       group: deploy-qa
       cancel-in-progress: false
 
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
-      - name: Log Change Request
-        run: echo "Deploying under Change Request ${{ github.event.inputs.change_request_id }}"
-
       - name: Validate Bundle
-        run: databricks bundle validate
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+        run: databricks bundle validate --target qa
 
       - name: Deploy Bundle to QA
         run: databricks bundle deploy --target qa
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
 
       - name: Capture Deployed Resource Summary
         run: databricks bundle summary --target qa
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_QA }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_QA }}
+
+      - name: Run Pipeline Job (end-to-end verification)
+        run: databricks bundle run patient360_pipeline --target qa
+        timeout-minutes: 60
+
+      - name: Run pytest against QA
+        run: |
+          pip install pytest pyspark==3.5.0 --quiet
+          pytest tests/ -v --tb=short
+
+      - name: Verify Unity Catalog and Gold Tables
+        run: |
+          pip install databricks-sdk --quiet
+          python3 - <<'PYEOF'
+          import os, sys
+          from databricks.sdk import WorkspaceClient
+
+          w = WorkspaceClient(
+              host=os.environ["DATABRICKS_HOST"],
+              token=os.environ["DATABRICKS_TOKEN"]
+          )
+
+          catalog      = "sdlc_catalog"
+          gold_schema  = "patient_360_gold"
+          bronze_schema = "patient_360_bronze"
+          silver_schema = "patient_360_silver"
+          warehouse_id = "5e872471aabd37ad"
+
+          schemas = [s.name for s in w.schemas.list(catalog_name=catalog)]
+          for schema in [bronze_schema, silver_schema, gold_schema]:
+              if schema not in schemas:
+                  print(f"FAIL: Schema not found: {catalog}.{schema}")
+                  sys.exit(1)
+              print(f"OK: Schema exists: {catalog}.{schema}")
+
+          tables = list(w.tables.list(catalog_name=catalog, schema_name=gold_schema))
+          if not tables:
+              print(f"FAIL: No tables in {catalog}.{gold_schema}")
+              sys.exit(1)
+          print(f"OK: Gold tables: {[t.name for t in tables]}")
+
+          resp = w.statement_execution.execute_statement(
+              warehouse_id=warehouse_id,
+              statement=f"SELECT COUNT(*) FROM `{catalog}`.`{gold_schema}`.`{tables[0].name}`",
+              wait_timeout="60s"
+          )
+          count = int(resp.result.data_array[0][0])
+          if count == 0:
+              print(f"FAIL: Gold table {tables[0].name} has 0 rows")
+              sys.exit(1)
+          print(f"OK: Gold table '{tables[0].name}' has {count} rows")
+
+          print("ALL QA VERIFICATION CHECKS PASSED")
+          PYEOF
+
+      - name: Auto-generate Change Request
+        run: |
+          cat > ../../docs/Change_Request.md << EOF
+          # Change Request — Patient360 QA Deployment
+
+          **Change Title:** Patient360 Analytics Pipeline — QA Deployment
+          **Change Type:** Standard
+          **Deployed By:** GitHub Actions (Run ID: ${{ github.run_id }})
+          **Deployment Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          **Pipeline Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ## Impacted Systems
+          - Databricks catalog: sdlc_catalog
+          - Schemas: patient_360_bronze, patient_360_silver, patient_360_gold
+          - Dashboards: Executive, Clinical, Operational, Financial
+          - Job: Patient360 Analytics Pipeline - qa
+
+          ## Testing Evidence
+          - Unit tests: passed (see workflow run)
+          - QA pipeline run: SUCCESS
+          - Gold table row count: verified > 0
+
+          ## Rollback Plan
+          Run: databricks bundle deploy --target qa (previous bundle version)
+          EOF
+          echo "Change Request generated"
 
       - name: Notify Success
         if: success()
-        run: echo "QA deployment successful — CR ${{ github.event.inputs.change_request_id }}"
+        run: echo "QA deployment and verification successful — promoting to PROD"
 
       - name: Notify Failure
         if: failure()
-        run: echo "QA deployment FAILED — CR ${{ github.event.inputs.change_request_id }} — review logs"
+        run: |
+          echo "QA deployment FAILED — PROD promotion blocked"
+          exit 1

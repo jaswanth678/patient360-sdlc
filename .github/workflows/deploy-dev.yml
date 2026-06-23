@@ -18,34 +18,88 @@ jobs:
       group: deploy-dev
       cancel-in-progress: false
 
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
       - name: Install Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
 
       - name: Validate Bundle
-        run: databricks bundle validate
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+        run: databricks bundle validate --target dev
 
       - name: Deploy Bundle to DEV
         run: databricks bundle deploy --target dev
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
 
       - name: Capture Deployed Resource Summary
         run: databricks bundle summary --target dev
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_DEV }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_DEV }}
+
+      - name: Run Pipeline Job (end-to-end verification)
+        run: databricks bundle run patient360_pipeline --target dev
+        timeout-minutes: 60
+
+      - name: Verify Unity Catalog and Gold Tables
+        run: |
+          pip install databricks-sdk --quiet
+          python3 - <<'PYEOF'
+          import os, sys
+          from databricks.sdk import WorkspaceClient
+
+          w = WorkspaceClient(
+              host=os.environ["DATABRICKS_HOST"],
+              token=os.environ["DATABRICKS_TOKEN"]
+          )
+
+          catalog      = "sdlc_catalog"
+          gold_schema  = "patient_360_gold"
+          bronze_schema = "patient_360_bronze"
+          silver_schema = "patient_360_silver"
+          warehouse_id = "5e872471aabd37ad"
+
+          # 1. Verify all schemas exist
+          schemas = [s.name for s in w.schemas.list(catalog_name=catalog)]
+          for schema in [bronze_schema, silver_schema, gold_schema]:
+              if schema not in schemas:
+                  print(f"FAIL: Schema not found: {catalog}.{schema}")
+                  sys.exit(1)
+              print(f"OK: Schema exists: {catalog}.{schema}")
+
+          # 2. Verify Gold tables exist
+          tables = list(w.tables.list(catalog_name=catalog, schema_name=gold_schema))
+          if not tables:
+              print(f"FAIL: No tables found in {catalog}.{gold_schema}")
+              sys.exit(1)
+          print(f"OK: Gold tables: {[t.name for t in tables]}")
+
+          # 3. Verify row count > 0 in primary Gold table
+          resp = w.statement_execution.execute_statement(
+              warehouse_id=warehouse_id,
+              statement=f"SELECT COUNT(*) FROM `{catalog}`.`{gold_schema}`.`{tables[0].name}`",
+              wait_timeout="60s"
+          )
+          count = int(resp.result.data_array[0][0])
+          if count == 0:
+              print(f"FAIL: Gold table {tables[0].name} has 0 rows — pipeline did not load data")
+              sys.exit(1)
+          print(f"OK: Gold table '{tables[0].name}' has {count} rows")
+
+          print("ALL DEV VERIFICATION CHECKS PASSED")
+          PYEOF
 
       - name: Notify Success
         if: success()
-        run: echo "DEV deployment successful — all resources deployed via DAB"
+        run: echo "DEV deployment and verification successful — promoting to QA"
 
       - name: Notify Failure
         if: failure()
-        run: echo "DEV deployment FAILED — review bundle validate output and fix errors before retrying"
+        run: |
+          echo "DEV deployment FAILED — QA promotion blocked"
+          exit 1
