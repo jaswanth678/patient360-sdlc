@@ -18,7 +18,21 @@ The solution should:
 
 ## **Jira Information**
 
+Jira Project Name: Databricks Vibecoding
 Jira Project Key: DV
+
+## **Databricks Environment Configuration**
+
+Workspace Host: https://dbc-b779df5b-df6a.cloud.databricks.com
+Catalog Name: sdlc\_catalog
+Source Schema: patient\_360
+Raw Schema: patient\_360\_raw
+Bronze Schema: patient\_360\_bronze
+Silver Schema: patient\_360\_silver
+Gold Schema: patient\_360\_gold
+Warehouse ID: 5e872471aabd37ad
+Cluster ID: Not applicable — serverless compute is used; `cluster_id` is intentionally left empty
+Notification Email: jaswanthkadali@gmail.com
 
 ## **Source Information**
 
@@ -80,6 +94,9 @@ bronze\_lab
 bronze\_billing  
 bronze\_patient\_history
 
+Target Schema:  
+sdlc\_catalog.patient\_360\_bronze
+
 Transformations:  
 • Column sanitization  
 • Metadata columns  
@@ -110,6 +127,9 @@ Create analytical datasets:
 • doctor\_performance\_summary  
 • medication\_adherence\_summary  
 • patient\_risk\_summary
+
+Target Schema:  
+sdlc\_catalog.patient\_360\_gold
 
 KPIs:  
 • Total Patients  
@@ -174,9 +194,17 @@ Generate unit tests for:
 • Gold Layer  
 Coverage Target: 80%+
 
+## **Security Requirements**
+
+• Governance via Unity Catalog — all data assets registered under `sdlc\_catalog`.
+• Access control enforced through Unity Catalog grants on catalog, schemas, and tables.
+• No PII (patient email, contact, address) exposed in Gold dashboards — mask or exclude sensitive columns.
+• Credentials and tokens never hardcoded — sourced from Databricks secrets / CI environment variables.
+• Audit lineage maintained from Raw through Gold via ingestion metadata columns.
+
 ## **Deployment Requirements**
 
-Environment: DEV 
+Environments: DEV → QA → PROD (auto-promotion via GitHub Actions; all targets use the same workspace host)
 
 Deployment Method: Databricks Asset Bundle  
 Source Control: GitHub  

@@ -67,7 +67,7 @@ Extract:
 * **Databricks Gold Schema** — extract from PRD or derive from naming convention; do NOT hardcode
 * **Databricks Workspace Host** — extract from PRD; do NOT hardcode
 * **Warehouse ID** — extract from PRD; if missing, **fail immediately** with error: "Warehouse ID is required in the PRD — add it before proceeding. Do NOT prompt the user interactively."
-* **Cluster ID** — extract from PRD; if missing, **fail immediately** with error: "Cluster ID is required in the PRD — add it before proceeding. Do NOT prompt the user interactively."
+* **Cluster ID** — extract from PRD. **Optional when serverless compute is used.** If the PRD specifies serverless compute (or explicitly marks Cluster ID as not applicable / serverless), leave `cluster_id` empty and proceed — do NOT fail. Fail immediately **only** if the PRD specifies neither a Cluster ID nor serverless compute, with error: "Specify a Cluster ID or serverless compute in the PRD before proceeding. Do NOT prompt the user interactively."
 * **Notification Email** — extract from PRD; if missing, **fail immediately** with error: "Notification Email is required in the PRD — add it before proceeding. Do NOT prompt the user interactively."
 
 Generate a structured requirement model before proceeding to any subsequent phase.
@@ -170,11 +170,59 @@ After creating the full backlog:
 
 2. Assign Stories and Tasks to Sprints based on priority and dependency order.
 
-3. Assign team members with clear ownership for each Task.
+3. Assign team members with clear ownership for each Task (see **JIRA OWNERSHIP ASSIGNMENT** below).
 
 4. Set Story Points or time estimates where possible.
 
 5. Identify and flag any blockers in the backlog before Sprint start.
+
+---
+
+## JIRA OWNERSHIP ASSIGNMENT
+
+Every Epic, Feature, Story, Task, and Subtask must have an explicit `assignee` — no ticket may be left unassigned. Ownership is assigned at creation time and is **role-based, mapped to the SDLC layer the ticket belongs to**, so accountability is unambiguous.
+
+### Recommended Model — Layer-to-Role Mapping with a PRD Team Roster
+
+**Step 1 — Read the team roster from the PRD.** Extract a `team_roster` block listing people and their roles. If the PRD provides no roster, fall back to assigning every ticket to the Notification Email owner (the project lead) and surface a warning at Checkpoint 2 that a roster was not supplied.
+
+Example roster shape the PRD may provide:
+
+```
+team_roster:
+  - { name: "...", email: "...", role: "Product Owner" }
+  - { name: "...", email: "...", role: "Tech Lead" }
+  - { name: "...", email: "...", role: "Data Engineer" }
+  - { name: "...", email: "...", role: "BI Developer" }
+  - { name: "...", email: "...", role: "QA Engineer" }
+  - { name: "...", email: "...", role: "DevOps Engineer" }
+```
+
+**Step 2 — Resolve each person to a Jira account ID** with `lookupJiraAccountId(<email or display name>)`. Use the returned `accountId` for the `assignee` field. If a name cannot be resolved, flag it at Checkpoint 1 rather than silently leaving it blank.
+
+**Step 3 — Assign by hierarchy and layer:**
+
+| Ticket level | Default owner role | Rationale |
+|--------------|--------------------|-----------|
+| **Epic** | Product Owner (accountable) + Tech Lead (delivery) | Owns the business capability and overall delivery. |
+| **Feature** | Module lead for that layer (e.g. Data Engineer lead for pipeline Features, BI Developer for the Dashboard Feature, DevOps for the Deployment Feature) | One throat to choke per capability. |
+| **Story / Task / Subtask** | The engineer who owns that layer | Direct, hands-on accountability. |
+
+Layer → role routing for Stories/Tasks:
+
+| Layer / Work item | Default assignee role |
+|-------------------|------------------------|
+| Source Ingestion, Bronze, Silver, Gold, Data Quality | Data Engineer |
+| Dashboard / AI-BI | BI Developer |
+| Unit Testing, UAT | QA Engineer |
+| DAB, Terraform, CI/CD, Deployment, Monitoring | DevOps Engineer |
+| Architecture, S2T mapping, Documentation | Tech Lead |
+
+**Step 4 — Balance load within a role.** When a role has more than one person in the roster, distribute that role's tickets round-robin so no single person is overloaded; keep all Tasks/Subtasks under one Story with the same assignee for continuity.
+
+**Step 5 — Set the assignee at creation** via the `assignee` field in `createJiraIssue` (or `editJiraIssue` afterward). Record the chosen owner in the ticket so the Kanban board's swimlanes-by-assignee view is meaningful.
+
+This model is deterministic, auditable, and keeps ownership aligned with the status lifecycle: the assignee is the person whose action moves the ticket from To Do → In Progress → In Review → Done.
 
 ---
 
@@ -185,6 +233,39 @@ Configure the board to track status across columns:
 * Backlog → In Progress → In Review (PR raised) → Done
 
 Link each task's status to the corresponding GitHub PR or Databricks deployment step.
+
+---
+
+## JIRA STATUS LIFECYCLE (Flow-Driven Transitions)
+
+Every Epic, Feature, Story, Task, and Subtask must have its status driven automatically by where the build flow is — never left static after creation. The agent owns these transitions; do not wait for a human to move tickets.
+
+### Status Model
+
+| Status | When it applies |
+|--------|-----------------|
+| **To Do** (Backlog) | Set at creation. Every ticket starts here immediately after the JIRA backlog is generated (Step 3). |
+| **In Progress** | Set the moment build work on that ticket's scope begins — i.e. when the agent starts generating the code/asset for that layer (Bronze, Silver, Gold, Dashboard, DAB, Terraform, CI/CD, Tests, Docs). The ticket stays In Progress for the entire build + deploy + verification window. |
+| **In Review** | Set when the Pull Request that delivers the ticket's work is raised (Step 35). The PR must reference the ticket (`{jira_project_key}-<n>`). |
+| **Done** | Set only when the *entire* flow for that ticket is complete — code merged, deployed to the target, and verified (job run `SUCCESS`, Gold row count > 0, dashboards `ACTIVE`) — and the release notification is posted. |
+
+### Transition Mechanics (Jira MCP)
+
+JIRA does not accept a status name directly — you must use the transition ID for that project's workflow:
+
+1. Call `getTransitionsForJiraIssue(issueIdOrKey)` to retrieve the valid transitions and their IDs for the current state.
+2. Match the target status name (e.g. "In Progress") to its transition `id`.
+3. Call `transitionJiraIssue(issueIdOrKey, transition={id})`.
+4. If the desired transition is not available from the current state, walk the workflow one valid step at a time until the target status is reached.
+5. Add a comment via `addCommentToJiraIssue` on each transition noting *what* triggered it (e.g. "Moved to In Progress — Bronze ingestion code generation started", "Moved to In Review — PR #42 raised", "Moved to Done — deployed to prod, job run SUCCESS, dashboards ACTIVE").
+
+### Roll-Up Rule (parent status follows children)
+
+* A **Story** moves to **In Progress** when its first child Task moves to In Progress; it moves to **Done** only when *all* its child Tasks/Subtasks are Done.
+* A **Feature** moves to **In Progress** when its first child Story is In Progress; it moves to **Done** only when *all* child Stories are Done.
+* An **Epic** moves to **In Progress** when its first child Feature is In Progress; it moves to **Done** only when *all* child Features are Done — i.e. the entire flow has finished and been verified.
+
+Never mark a parent Done while any descendant is still open.
 
 ---
 
@@ -799,7 +880,7 @@ Deployment Time: {timestamp}
 Key Stakeholders Notified: {stakeholder_list}
 ```
 
-Update the JIRA ticket status to "Done" after the notification is posted.
+After the notification is posted, transition the JIRA ticket(s) to "Done" via `getTransitionsForJiraIssue` → `transitionJiraIssue`, applying the roll-up rule from **JIRA STATUS LIFECYCLE** (a parent reaches Done only when all its descendants are Done).
 
 ---
 
@@ -1098,7 +1179,7 @@ Steps:
 13. `manage_dashboard(action="get", dashboard_id=<id>)` for each of the 4 dashboards — assert `lifecycle_state == "ACTIVE"`
 14. Confirm all dashboard `queryLines` reference only `{catalog_name}.{gold_schema}.*`
 15. Post release notification (job URL, dashboard URLs, Gold table row counts, JIRA ticket link, Change Request link)
-16. Update JIRA ticket status to "Done"
+16. Transition JIRA ticket(s) to "Done" via `transitionJiraIssue`, applying the roll-up rule (parents reach Done only when all descendants are Done) — see **JIRA STATUS LIFECYCLE**
 
 ---
 
@@ -1285,13 +1366,15 @@ When a PRD is provided, execute these steps in order:
 > ⏸ **HUMAN CHECKPOINT 1 — Requirement Extraction Review**
 > Display the full extracted configuration and `domain_mapping.json` preview. Wait for explicit APPROVE before proceeding.
 
-3. **Create Jira Backlog** — Epics, Features, Stories with Acceptance Criteria, Tasks in `{jira_project_key}`
+3. **Create Jira Backlog** — Epics, Features, Stories with Acceptance Criteria, Tasks in `{jira_project_key}`. Assign every ticket an owner per **JIRA OWNERSHIP ASSIGNMENT**, and set initial status to **To Do**.
 4. **Configure Sprint Plan** — define Sprints, assign team members, set up Kanban/Scrum board
 5. **Set Up JIRA Roadmap** — create high-level timeline for management visibility
 6. **Link Design Documents to JIRA Tickets** — architecture, S2T mapping, dashboard spec, deployment guide
 
 > ⏸ **HUMAN CHECKPOINT 2 — Project Blueprint Review**
 > Display JIRA backlog summary (Epic/Story/Task counts), sprint plan, architecture, medallion layer table list, and dashboard plan. Wait for explicit APPROVE before any code is generated.
+
+> 🔄 **STATUS TRANSITION — Build started.** As each layer's build begins (Bronze, Silver, Gold, Dashboard, DAB, Terraform, CI/CD, Tests, Docs), transition the corresponding Story/Task — and its parent Feature/Epic via the roll-up rule — to **In Progress** using `getTransitionsForJiraIssue` → `transitionJiraIssue`. Tickets remain In Progress through deploy and verification.
 
 7. **Generate Databricks Project Structure** — using catalog and schema names extracted from PRD
 8. **Generate Bronze Assets** — ingestion notebooks with required metadata columns
@@ -1325,10 +1408,12 @@ When a PRD is provided, execute these steps in order:
 > Display full deployment verification summary (job URL, run result, Gold row counts, all 4 dashboard states) and the explicit list of files to be committed. Wait for explicit APPROVE before committing or pushing to GitHub.
 
 34. **Stage and Commit All Files Explicitly** — never `git add .`; every commit references JIRA ticket
-35. **Raise PR** — title must include JIRA ticket reference; requires peer review before merge
+35. **Raise PR** — title must include JIRA ticket reference; requires peer review before merge. **Transition the linked ticket(s) to In Review** (and parents via roll-up).
 36. **Push to GitHub Remote**
 37. **Post Release Notification** — in release channel with Job URL, Dashboard URLs, JIRA ticket link
 38. **Confirm GitHub Landing Page** — shows README at repo root
+
+> 🔄 **STATUS TRANSITION — Flow complete.** Once the work is merged, deployed, and verified (job run `SUCCESS`, Gold row count > 0, all dashboards `ACTIVE`) and the release notification is posted, transition the ticket to **Done**. Apply the roll-up rule: a Story/Feature/Epic moves to Done only after *all* of its descendants are Done — i.e. the entire flow has finished.
 
 Do not stop after any single step.
 
